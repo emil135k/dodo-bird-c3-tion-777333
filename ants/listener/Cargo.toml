@@ -1,0 +1,11 @@
+[package]
+name = "listener"
+version = "0.1.0"
+edition = "2021"
+description = "Listener — subscribes to stt_text bus and prints what the swarm heard."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+iceoryx2 = "0.6"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"

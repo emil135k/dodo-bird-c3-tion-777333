@@ -1,0 +1,14 @@
+[package]
+name = "ear-ant"
+version = "0.1.0"
+edition = "2021"
+description = "Ear Ant — Microphone capture to iceoryx2 bus. One ant, one job."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+iceoryx2 = "0.6"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"
+
+# Microphone capture — cross-platform audio input
+cpal = "0.15"

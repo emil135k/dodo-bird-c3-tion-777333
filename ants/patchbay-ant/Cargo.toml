@@ -1,0 +1,21 @@
+[package]
+name = "patchbay-ant"
+version = "0.1.0"
+edition = "2021"
+description = "Patchbay Ant — Audio device routing. Config-driven. One ant, one job."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+iceoryx2 = "0.6"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"
+
+# Audio device access
+cpal = "0.15"
+
+# Playback
+rodio = "0.20"
+
+# Config
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,25 @@
+[package]
+name = "digi-ant"
+version = "0.1.0"
+edition = "2021"
+description = "Digi Ant — Digital signal processing. Resampling, codec, format conversion. Proven crates only."
+authors = ["Emil & Cody — Sparked Matter LLC"]
+
+[dependencies]
+# iceoryx2 zero-copy bus
+iceoryx2 = "0.6"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"
+
+# Resampling — sinc-based with anti-aliasing (NON-NEGOTIABLE)
+rubato = "0.15"
+
+# Mu-law codec — ITU-T G.711 compliant
+audio-codec-algorithms = "0.5"
+
+# Sample format conversion, channel mixing
+dasp = "0.11"
+
+# Config
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

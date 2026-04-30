@@ -1,0 +1,54 @@
+# Sovereign Ant Manifest — hypAiAssist
+# The Dagger factory reads this to build and deploy each ant.
+
+[ant.ear]
+name = "ear-ant"
+bus_publish = "stt_audio"
+sample_rate = 16000
+priority = "realtime"
+description = "Mic → bus (hardware input)"
+
+[ant.mouth]
+name = "mouth-ant"
+bus_subscribe = "tts_audio"
+sample_rate = 24000
+priority = "realtime"
+description = "Bus → speakers (hardware output)"
+
+[ant.stt]
+name = "stt-ant"
+bus_subscribe = "stt_audio"
+bus_publish = "stt_text"
+sample_rate = 16000
+priority = "realtime"
+model = "parakeet-tdt-v3-coreml"
+worker = "parakeet-worker"
+description = "Audio → text (Parakeet CoreML ANE)"
+
+[ant.tts]
+name = "tts-ant"
+bus_subscribe = "tts_text"
+bus_publish = "tts_audio"
+sample_rate = 24000
+voice = "af_heart"
+priority = "high"
+model = "kokoro-v1.0"
+description = "Text → audio (Kokoro CoreML)"
+
+[ant.llm]
+name = "llm-ant"
+bus_subscribe = "stt_text"
+bus_publish = "tts_text"
+priority = "high"
+providers = ["ollama/gemma4", "ollama/nemotron", "claude-haiku", "gemini"]
+description = "Brain — text in, text out"
+
+[ant.sample_match]
+name = "sample-match-ant"
+priority = "high"
+description = "Sample rate conversion"
+
+[ant.patchbay]
+name = "patchbay-ant"
+priority = "realtime"
+description = "Audio routing (BlackHole channels)"

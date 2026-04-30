@@ -1,0 +1,25 @@
+[package]
+name = "web-ant"
+version = "0.1.0"
+edition = "2021"
+description = "Web Ant — WebSocket/HTTP gateway. Zero audio processing. Shuttles bytes."
+authors = ["Emil & Cody — Sparked Matter LLC"]
+
+[dependencies]
+# iceoryx2 zero-copy bus
+iceoryx2 = "0.6"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"
+
+# Async runtime + WebSocket server
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.7", features = ["ws"] }
+futures-util = "0.3"
+
+# REST API client (Twilio outbound calls)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"

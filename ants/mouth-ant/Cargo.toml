@@ -1,0 +1,15 @@
+[package]
+name = "mouth-ant"
+version = "0.1.0"
+edition = "2021"
+description = "Mouth Ant — bus to speakers — subscribes to hypai/audio bus, plays f32 samples via rodio. One ant, one job."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+# Zero-copy IPC — shared memory bus
+iceoryx2 = "0.6"
+
+# Direct audio playback — RAM only
+rodio = "0.20"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"

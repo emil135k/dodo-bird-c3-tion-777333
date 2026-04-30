@@ -1,0 +1,6 @@
+{
+    "threshold": 0.5,
+    "silence_frames_to_end": 20,
+    "min_utterance_ms": 500,
+    "max_utterance_ms": 10000
+}

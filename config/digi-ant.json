@@ -1,0 +1,6 @@
+{
+    "tts_rate": 24000,
+    "phone_rate": 8000,
+    "stt_rate": 16000,
+    "normalize_peak": 0.85
+}

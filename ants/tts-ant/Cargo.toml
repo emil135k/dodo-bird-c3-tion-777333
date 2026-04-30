@@ -1,0 +1,29 @@
+[package]
+name = "tts-ant"
+version = "0.1.0"
+edition = "2021"
+description = "TTS Ant — Kokoro v1.0 ONNX + misaki-rs. Standalone daemon, iceoryx2 zero-copy IPC."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+# ONNX inference — CoreML Neural Engine
+ort = { version = "2.0.0-rc.11", features = ["coreml"] }
+
+# Zero-copy IPC — shared memory bus
+iceoryx2 = "0.6"
+
+# G2P phonemizer — pure Rust
+misaki-rs = { version = "0.3", default-features = false }
+
+# Kokoro token vocab — phoneme → integer ID mapping
+kokoro-g2p = { path = "../../../kokoro-g2p" }
+
+# Singleton model engine
+once_cell = "1"
+
+# Direct audio playback — RAM only (for local testing)
+rodio = "0.20"
+
+# BANNED: wav, hound, pyo3, serde_json on hot path, any file I/O for audio
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"

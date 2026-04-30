@@ -1,0 +1,18 @@
+[package]
+name = "silero-ant"
+version = "0.2.0"
+edition = "2021"
+description = "Silero Ant — Silero VAD v6, 48kHz native. Configurable via JSON."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+iceoryx2 = "0.6"
+iceoryx2-bb-system-types = "0.6"
+iceoryx2-bb-container = "0.6"
+
+# Silero VAD v6 — accepts 48kHz natively (decimates internally)
+silero-vad-rust = { version = "6.2", default-features = false }
+
+# Config serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
