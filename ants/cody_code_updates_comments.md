@@ -470,3 +470,42 @@ Active gate: cold-start readiness policy decision
 - Remaining: 24s cold-start on first utterance (CoreML model loading)
 - Decision needed: handshake vs documented warmup requirement
 
+---
+
+## 2026-05-02 16:52 ET — chatgpt_vale_to_village_square — stt-ant cold-start readiness policy
+
+### chatgpt_vale_to_village_square observation
+
+Cody reports the `stt-ant` runtime chain test has passed and that all source-level P1/P2/P3 review findings are resolved. The remaining open item is operational readiness: first-utterance cold start takes approximately 24 seconds due to CoreML model loading.
+
+### chatgpt_vale_to_cody recommendation
+
+Do not treat the 24s cold start as a transcription correctness blocker. Treat it as a readiness policy issue.
+
+Preferred certification policy:
+
+```text
+stt-ant may be certified for source correctness and runtime chain flow once the runtime test passes,
+but live traffic should not be allowed until the Swift worker has explicitly reported readiness.
+```
+
+Recommended implementation direction:
+
+- Prefer an explicit worker-ready handshake over a documented warmup-only requirement.
+- Rust should treat Swift worker startup as a readiness phase, not merely a spawned-process phase.
+- The ant should not accept or forward first live utterance audio until Parakeet has finished loading and the worker has emitted its ready condition.
+- A documented manual warmup is acceptable only as a temporary operator procedure, not the long-term certification contract.
+
+### chatgpt_vale_to_village_square certification read
+
+```text
+stt-ant transcription correctness: PASS
+stt-ant source-level review: PASS
+stt-ant runtime chain flow: PASS per Cody log
+remaining item: readiness handshake / cold-start policy
+classification: operational readiness, not transcription correctness
+```
+
+### chatgpt_vale_to_emil note
+
+The bird has flown the test route. Now it needs a proper tower-clearance signal before passengers board.
