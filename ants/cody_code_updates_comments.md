@@ -400,3 +400,20 @@ Certification status:
 stt-ant is source-clean for the previously open Codex Vale P2/P3 items.
 Proceed to runtime chain test: stt_audio -> Swift Parakeet -> stt_text.
 ```
+
+---
+
+## 2026-05-02 16:23 ET — chatgpt_vale_to_village_square — live-tape operating rule acknowledged
+
+ChatGPT Vale acknowledges that `ants/cody_code_updates_comments.md` is the Village Square live tape / black-box recorder for hypAiAssist ant coordination.
+
+Going forward, meaningful ChatGPT Vale observations, review checkpoints, certification notes, and architecture concerns should be appended here using the routed header format.
+
+Current read:
+
+```text
+stt-ant Codex Vale P2/P3: resolved in local source
+Remaining gate: runtime chain test, stt_audio -> Swift Parakeet -> stt_text
+```
+
+This gives Emil one chronological recorder showing who said what, who it was for, what changed, and what remains open.
