@@ -7,30 +7,51 @@
 // Protocol:
 //   Input:  4-byte little-endian i32 (sample count) + f32 samples
 //   Output: UTF-8 text line per transcription
+//           Empty transcriptions emit "<empty>" so upstream knows STT completed.
+//
+// Contract: Each input is one complete VAD-segmented utterance.
+// This worker is a compute engine, not a pipeline coordinator.
 //
 // Zero disk. Pipe only.
 
 import Foundation
 import ParakeetTDT
 
-// Initialize Parakeet with ANE
+// Safety bounds
+let SAMPLE_RATE: Int = 16000
+let MAX_UTTERANCE_SECONDS: Int = 60
+let MAX_SAMPLES: Int = MAX_UTTERANCE_SECONDS * SAMPLE_RATE  // 960000
+
+// Initialize Parakeet with ANE — synchronous, no async deadlock risk
 fputs("[PARAKEET-WORKER] Loading CoreML models...\n", stderr)
 
 let transcriber: ParakeetTranscriber
 do {
-    let semaphore = DispatchSemaphore(value: 0)
+    // Use RunLoop-based async execution to avoid Task + semaphore deadlock.
+    // The semaphore.wait() + Task pattern can deadlock when no async executor
+    // is making progress on the main thread.
     var result: ParakeetTranscriber?
     var initError: Error?
+    let done = DispatchSemaphore(value: 0)
 
-    Task {
-        do {
-            result = try await ParakeetTranscriber.fromHuggingFace(computeUnits: .ane)
-        } catch {
-            initError = error
+    DispatchQueue.global(qos: .userInitiated).async {
+        let group = DispatchGroup()
+        group.enter()
+
+        Task {
+            do {
+                result = try await ParakeetTranscriber.fromHuggingFace(computeUnits: .ane)
+            } catch {
+                initError = error
+            }
+            group.leave()
         }
-        semaphore.signal()
+
+        group.wait()
+        done.signal()
     }
-    semaphore.wait()
+
+    done.wait()
 
     if let err = initError {
         fputs("[PARAKEET-WORKER] FATAL: \(err)\n", stderr)
@@ -51,7 +72,24 @@ while true {
     if countData.count < 4 { break } // EOF
 
     let sampleCount = countData.withUnsafeBytes { $0.load(as: Int32.self).littleEndian }
-    if sampleCount <= 0 { continue }
+
+    // Validate sample count
+    if sampleCount <= 0 {
+        fputs("[PARAKEET-WORKER] WARN: invalid sample count \(sampleCount), skipping\n", stderr)
+        continue
+    }
+    if sampleCount > Int32(MAX_SAMPLES) {
+        fputs("[PARAKEET-WORKER] WARN: sample count \(sampleCount) exceeds max \(MAX_SAMPLES) (\(MAX_UTTERANCE_SECONDS)s), skipping\n", stderr)
+        // Drain the oversized payload to stay in sync with the protocol
+        let drainBytes = Int(sampleCount) * 4
+        var drained = 0
+        while drained < drainBytes {
+            let chunk = stdin.readData(ofLength: min(65536, drainBytes - drained))
+            if chunk.isEmpty { break }
+            drained += chunk.count
+        }
+        continue
+    }
 
     // Read f32 samples
     let byteCount = Int(sampleCount) * 4
@@ -72,7 +110,7 @@ while true {
         Array(ptr.bindMemory(to: Float.self))
     }
 
-    let duration = Float(samples.count) / 16000.0
+    let duration = Float(samples.count) / Float(SAMPLE_RATE)
     fputs("[PARAKEET-WORKER] Processing \(String(format: "%.1f", duration))s audio...\n", stderr)
 
     // Transcribe
@@ -82,15 +120,22 @@ while true {
 
         if !text.isEmpty {
             fputs("[PARAKEET-WORKER] \"\(text)\" (\(String(format: "%.0f", result.rtfx))x RT)\n", stderr)
-            // Write text line to stdout
             if let data = (text + "\n").data(using: .utf8) {
                 stdout.write(data)
             }
         } else {
+            // Emit explicit empty result so upstream knows STT completed
             fputs("[PARAKEET-WORKER] Empty transcription\n", stderr)
+            if let data = "<empty>\n".data(using: .utf8) {
+                stdout.write(data)
+            }
         }
     } catch {
         fputs("[PARAKEET-WORKER] Error: \(error)\n", stderr)
+        // Emit error marker so upstream knows this utterance failed
+        if let data = "<error>\n".data(using: .utf8) {
+            stdout.write(data)
+        }
     }
 }
 

@@ -76,9 +76,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Ok(_) => {
                     let text = line.trim().to_string();
-                    if !text.is_empty() {
-                        let _ = tx.send(text);
+                    if text.is_empty() { continue; }
+                    if text == "<empty>" {
+                        eprintln!("[STT-ANT] Empty transcription (VAD utterance had no recognizable speech)");
+                        continue;
                     }
+                    if text == "<error>" {
+                        eprintln!("[STT-ANT] Worker reported transcription error");
+                        continue;
+                    }
+                    let _ = tx.send(text);
                 }
                 Err(e) => {
                     eprintln!("[STT-ANT] Swift worker read error: {}", e);
@@ -116,17 +123,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let duration_s = sample_count as f64 / SAMPLE_RATE as f64;
             eprintln!("[STT-ANT] Forwarding {:.1}s audio ({} samples)", duration_s, sample_count);
 
+            // Note: flush() is intentional — Swift worker reads stdin in blocking mode.
+            // Without flush, short utterances may stall in the pipe buffer.
+            let write_start = std::time::Instant::now();
             if let Err(e) = worker_stdin.write_all(&sample_count.to_le_bytes()) {
-                eprintln!("[STT-ANT] Worker stdin write error: {}", e);
-                break;
+                eprintln!("[STT-ANT] FATAL: Worker stdin write error: {}", e);
+                return Err(format!("pipe broken: {}", e).into());
             }
             if let Err(e) = worker_stdin.write_all(payload) {
-                eprintln!("[STT-ANT] Worker stdin write error: {}", e);
-                break;
+                eprintln!("[STT-ANT] FATAL: Worker stdin write error: {}", e);
+                return Err(format!("pipe broken: {}", e).into());
             }
             if let Err(e) = worker_stdin.flush() {
-                eprintln!("[STT-ANT] Worker stdin flush error: {}", e);
-                break;
+                eprintln!("[STT-ANT] FATAL: Worker stdin flush error: {}", e);
+                return Err(format!("pipe broken: {}", e).into());
+            }
+            let write_ms = write_start.elapsed().as_millis();
+            if write_ms > 100 {
+                eprintln!("[STT-ANT] WARN: pipe write took {}ms — worker may be backpressured", write_ms);
             }
         }
 
