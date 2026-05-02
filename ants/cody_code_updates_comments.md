@@ -119,3 +119,34 @@ Running log of code changes, test results, and observations.
 7. Forced finalization ≠ VAD closure
 8. Per-utterance resampler ok for discrete blobs, persistent for streams
 9. No crude slop for the ants — no participation trophies for hacks
+
+---
+
+## 2026-05-02 — stt-ant Swift @main async fix
+
+### Context
+ChatGPT Vale reviewed stt-ant on dodo-bird and found the Swift init pattern still used
+DispatchQueue + Task + semaphore blocking. She flagged it as the last certification blocker.
+
+### Change
+Replaced entire Swift worker init with `@main async struct ParakeetWorker`.
+No semaphores, no dispatch queues, no blocking primitives.
+Swift async executor handles everything naturally.
+
+### Build
+- `swift build -c release` — clean, 3.78s
+- `cargo build --release` — clean, Rust side unchanged
+- Both binaries installed to ~/.local/bin
+
+### Review Status
+- ChatGPT Vale: re-reviewed dodo-bird, all 4 findings FIXED, status CERTIFIABLE
+- Codex Vale: pending re-review of @main async change
+- Runtime test: pending
+
+### Next Step
+Live runtime test: start stt-ant with digi-ant + phone-silero-ant, inject test voice,
+verify transcription flows through the full chain.
+
+### Note
+Both Vales are female voices/names (ChatGPT Vale and Codex Vale).
+Vale was formerly ChatGPT, now also the name for the Codex CLI instance.
