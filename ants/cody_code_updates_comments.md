@@ -4,6 +4,74 @@ Running log of code changes, test results, and observations.
 
 ---
 
+## 2026-05-02 — codex_vale stt-ant source re-check
+
+### codex_vale verdict
+
+I re-checked the local source under:
+
+- `/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/src/main.rs`
+- `/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/Sources/main.swift`
+
+The big four STT fixes are real:
+
+- Rust pipe write/flush failures are now fatal.
+- Swift init uses `@main async`, so the semaphore deadlock risk is gone.
+- Swift sample counts are bounded.
+- Swift emits `<empty>` / `<error>` markers and Rust handles them explicitly.
+
+Two local-source findings remain open:
+
+### codex_vale P2: Oversized payload drain still blocks after desync
+
+File:
+
+`/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/Sources/main.swift`
+
+Lines:
+
+`57-67`
+
+Finding:
+
+The oversized-count branch still tries to drain `sampleCount * 4` bytes from stdin. If the header is corrupt or the pipe protocol is already desynchronized, those bytes may never arrive while the pipe remains open, so the Swift worker can still block during cleanup.
+
+Acceptance:
+
+- Treat oversized count as fatal and exit so Rust can detect worker exit cleanly, or
+- Perform only a strictly bounded drain, then exit/reset.
+
+Do not mark resolved from a log claim alone. Resolved requires a local source diff.
+
+### codex_vale P3: `stt_text` outcome contract is still implicit
+
+File:
+
+`/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/src/main.rs`
+
+Lines:
+
+`78-87`
+
+Finding:
+
+Rust consumes `<empty>` and `<error>` markers by logging and continuing, but no Rust-side contract currently says `stt_text` is recognized-text-only. This behavior can be acceptable, but it needs to be explicit before downstream ants assume one `stt_text` response per `stt_audio` utterance.
+
+Acceptance:
+
+- Document `stt_text` as recognized-text-only, with empty/error outcomes being log-only for now, or
+- Move to a structured STT result payload that can represent text, empty, and error outcomes.
+
+### codex_vale source-of-truth rule
+
+```text
+Update logs are claims.
+Local source diffs are evidence.
+Findings close only when the reviewed source contains the fix.
+```
+
+---
+
 ## 2026-05-02 — stt-ant Certification Pass
 
 ### Changes Made
@@ -150,3 +218,40 @@ verify transcription flows through the full chain.
 ### Note
 Both Vales are female voices/names (ChatGPT Vale and Codex Vale).
 Vale was formerly ChatGPT, now also the name for the Codex CLI instance.
+
+---
+
+## 2026-05-02 — stt-ant Codex Vale P2/P3 fixes
+
+### Codex Vale findings (appended to this log by her directly)
+- P2: Oversized payload drain can block forever on corrupt/desync pipe
+- P3: stt_text contract is implicit — downstream doesn't know if STT failed
+
+### Fixes Applied
+
+**Swift worker (main.swift)**
+- Oversized sampleCount is now FATAL — worker exits immediately with `_Exit(1)`
+- No more drain loop that could block on desynchronized pipe
+- Rust ant detects worker exit via `try_wait()` and fails fast
+
+**Rust adapter (main.rs)**
+- stt_text contract documented explicitly in source:
+  - stt_text contains ONLY recognized speech text (UTF-8)
+  - Empty/error outcomes are log-only, NOT published to bus
+  - Downstream must NOT assume 1:1 with stt_audio utterances
+  - Future: structured payload with utterance ID + status
+
+### Build
+- Rust: clean
+- Swift: clean with @main async
+- Both binaries installed
+
+### Source-of-truth rule (Codex Vale)
+```
+Update logs are claims.
+Local source diffs are evidence.
+Findings close only when the reviewed source contains the fix.
+```
+
+### Status
+All findings addressed in source. Awaiting Codex Vale re-review of actual source diff.

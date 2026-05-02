@@ -55,16 +55,11 @@ struct ParakeetWorker {
                 continue
             }
             if sampleCount > MAX_SAMPLES {
-                fputs("[PARAKEET-WORKER] WARN: sample count \(sampleCount) exceeds max \(MAX_SAMPLES) (\(MAX_UTTERANCE_SECONDS)s), skipping\n", stderr)
-                // Drain the oversized payload to stay in sync with the protocol
-                let drainBytes = Int(sampleCount) * 4
-                var drained = 0
-                while drained < drainBytes {
-                    let chunk = stdinHandle.readData(ofLength: min(65536, drainBytes - drained))
-                    if chunk.isEmpty { break }
-                    drained += chunk.count
-                }
-                continue
+                // Oversized or corrupt header — pipe protocol is likely desynchronized.
+                // Draining is unsafe (may block forever on corrupt count).
+                // Exit so Rust ant detects worker death and fails fast.
+                fputs("[PARAKEET-WORKER] FATAL: sample count \(sampleCount) exceeds max \(MAX_SAMPLES) — protocol desync, exiting\n", stderr)
+                _Exit(1)
             }
 
             // Read f32 samples

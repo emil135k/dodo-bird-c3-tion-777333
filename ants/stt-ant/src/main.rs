@@ -53,6 +53,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sub = audio_svc.subscriber_builder().create()?;
 
     // Publish transcribed text
+    // Contract: stt_text contains ONLY recognized speech text (UTF-8).
+    // Empty transcriptions and errors are logged but NOT published to stt_text.
+    // Downstream ants should not assume 1:1 correspondence with stt_audio utterances.
+    // Future: structured payload with utterance ID, status, and text.
     let text_svc = node.service_builder(&"stt_text".try_into()?)
         .publish_subscribe::<[u8]>()
         .open_or_create()?;
