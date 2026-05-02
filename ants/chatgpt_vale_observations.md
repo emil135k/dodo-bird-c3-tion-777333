@@ -115,3 +115,78 @@ Blocker remaining: replace Swift init with true async @main or equivalent non-bl
 ### Vale note
 
 The dodo is no longer wobbling into traffic. It is mostly wearing a little helmet now. Still needs the Swift init cleaned up before certification.
+
+---
+
+## 2026-05-02 — stt-ant final async-init re-review
+
+Repository: `emil135k/dodo-bird-c3-tion-777333`
+
+Files reviewed:
+
+- `ants/stt-ant/swift-worker/Sources/main.swift`
+- `ants/cody_code_updates_comments.md`
+
+### Summary
+
+Cody's running log reported that the Swift worker had been upgraded from the intermediate blocking init pattern to a true `@main async` entry point. Re-fetching `main.swift` confirmed this is now present in the repository.
+
+The previous remaining blocker — Swift initialization blocking around async work — is resolved.
+
+### Confirmed current Swift init
+
+Current worker structure:
+
+```swift
+@main
+struct ParakeetWorker {
+    static func main() async {
+        fputs("[PARAKEET-WORKER] Loading CoreML models...\n", stderr)
+
+        let transcriber: ParakeetTranscriber
+        do {
+            transcriber = try await ParakeetTranscriber.fromHuggingFace(computeUnits: .ane)
+        } catch {
+            fputs("[PARAKEET-WORKER] FATAL: \\(error)\n", stderr)
+            _Exit(1)
+        }
+
+        fputs("[PARAKEET-WORKER] Ready (CoreML ANE)\n", stderr)
+        // blocking stdin read loop follows after async initialization
+    }
+}
+```
+
+This removes the prior `Task + semaphore.wait()` and `DispatchQueue + DispatchGroup + Task + wait()` patterns. Async model initialization now occurs naturally inside the async entry point.
+
+Status: **FIXED**
+
+### Certification read
+
+```text
+Rust pipe fatality: FIXED
+Swift sampleCount bound: FIXED
+Empty transcription behavior: FIXED / EXPLICIT
+Swift async init deadlock risk: FIXED
+Boundary contract: PRESERVED
+Architecture: STRONG
+```
+
+Review label:
+
+```text
+stt-ant: CERTIFIABLE pending local build/runtime confirmation
+```
+
+### Remaining non-blocking architecture notes
+
+These are not certification blockers for the current ant contract:
+
+- Utterance IDs are still future work for request/response correlation.
+- Backpressure is currently only a timing canary, not full flow control.
+- Worker restart policy remains future work; current behavior is fail-fast.
+- Typed bus upgrade from `[u8]` f32-packed to `[f32]` remains desirable later.
+
+### Vale note
+
+The dodo now has the helmet, the reflective vest, and a tiny clipboard. Assuming the local build/runtime checks pass, `stt-ant` can move from near-certification to certified under the current architecture.
