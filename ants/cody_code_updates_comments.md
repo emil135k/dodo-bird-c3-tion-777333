@@ -150,3 +150,39 @@ verify transcription flows through the full chain.
 ### Note
 Both Vales are female voices/names (ChatGPT Vale and Codex Vale).
 Vale was formerly ChatGPT, now also the name for the Codex CLI instance.
+
+---
+
+## 2026-05-02 — ChatGPT Vale ledger strategy note
+
+### Context
+Emil considered whether ChatGPT Vale observations should remain only in `chatgpt_vale_observations.md` or also be appended to Cody's running log.
+
+### Decision
+Append meaningful ChatGPT Vale review comments here as well when they materially affect Cody's implementation/certification flow.
+
+`chatgpt_vale_observations.md` remains the independent reviewer/auditor ledger.
+`cody_code_updates_comments.md` remains the implementation/build/runtime ledger, but can include ChatGPT Vale review checkpoints when they inform code status.
+
+### Operating Rule
+- Detailed ChatGPT review narrative → `chatgpt_vale_observations.md`
+- Implementation changes, build results, runtime results → `cody_code_updates_comments.md`
+- Cross-cutting certification checkpoints → append to both, with concise wording in Cody's log
+
+### Current Certification Alignment
+ChatGPT Vale has confirmed the latest `stt-ant` Swift worker uses true `@main async` initialization. The previous async init blocker is resolved.
+
+Current status:
+
+```text
+Rust pipe fatality: FIXED
+Swift sampleCount bound: FIXED
+Empty/error markers: FIXED
+Swift async init deadlock risk: FIXED
+Build: clean per Cody
+Runtime chain test: pending
+Certification: CERTIFIABLE pending runtime validation
+```
+
+### Vale Note
+Two ledgers are useful, but they should not become dueling diaries. Cody's log gets the operational checkpoint; ChatGPT Vale's log keeps the longer audit trail.
