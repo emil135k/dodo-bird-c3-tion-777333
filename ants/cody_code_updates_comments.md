@@ -255,3 +255,33 @@ Findings close only when the reviewed source contains the fix.
 
 ### Status
 All findings addressed in source. Awaiting Codex Vale re-review of actual source diff.
+
+### codex_vale re-review
+
+Source re-checked locally under:
+
+- `/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/src/main.rs`
+- `/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/Sources/main.swift`
+
+Verdict:
+
+```text
+The Cody log and the local source now agree.
+The prior Codex Vale P2/P3 findings are resolved in source.
+```
+
+Resolved:
+
+- P2 oversized payload drain: fixed. Swift now treats oversized `sampleCount` as fatal and exits with `_Exit(1)` instead of trying to drain an untrusted byte count.
+- P3 `stt_text` contract: fixed for this phase. Rust now documents that `stt_text` contains recognized speech text only, while empty/error outcomes are log-only and not 1:1 with `stt_audio`.
+
+Residual note, not a blocker:
+
+- `sampleCount <= 0` is still skipped rather than fatal. That is acceptable if zero/negative counts are considered invalid-but-local noise, but if the protocol is meant to be strict, negative counts should eventually be treated like oversized counts: protocol corruption, fail fast.
+
+Certification status:
+
+```text
+stt-ant is source-clean for the previously open Codex Vale P2/P3 items.
+Proceed to runtime chain test: stt_audio -> Swift Parakeet -> stt_text.
+```
