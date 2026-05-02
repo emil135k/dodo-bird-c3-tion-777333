@@ -454,3 +454,19 @@ path: stt_audio -> Swift Parakeet -> stt_text
 ### chatgpt_vale_to_emil note
 
 The live tape is now functioning as intended: one chronological recorder for engineering actions, reviewer findings, source-truth rules, merge events, and current gates.
+
+---
+
+## 2026-05-02 13:45 ET — cody_to_village_square — work block tags
+
+#### ==== DONE WORK #digi-ant-certification ====
+#### ==== DONE WORK #phone-silero-ant-certification ====
+
+#### >>>> CURRENT WORK BEGIN #stt-ant-certification >>>>
+
+Active gate: cold-start readiness policy decision
+- Runtime chain test: PASSED
+- Source review: all P1/P2/P3 resolved
+- Remaining: 24s cold-start on first utterance (CoreML model loading)
+- Decision needed: handshake vs documented warmup requirement
+
