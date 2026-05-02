@@ -7,9 +7,9 @@ authors = ["Emil & Cody — Sparked Matter LLC"]
 
 [dependencies]
 # iceoryx2 zero-copy bus
-iceoryx2 = "0.6"
-iceoryx2-bb-system-types = "0.6"
-iceoryx2-bb-container = "0.6"
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"
 
 # Resampling — sinc-based with anti-aliasing (NON-NEGOTIABLE)
 rubato = "0.15"

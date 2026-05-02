@@ -56,10 +56,8 @@ impl SileroConfig {
 #[derive(PartialEq)]
 enum State { Silence, Speech, Trailing }
 
-fn normalize(samples: &mut [f32]) {
-    let peak = samples.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
-    if peak > 0.001 { let g = 0.9 / peak; for s in samples.iter_mut() { *s *= g; } }
-}
+// NOTE: No normalize here. VAD is transparent — same samples in, same samples out.
+// Gain staging belongs in digi-ant or a dedicated gain ant, not in VAD.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("[PHONE-SILERO] Starting — 16kHz native phone VAD...");
@@ -73,9 +71,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     iox.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
     let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()?;
 
-    // Subscribe to phone_stt (16kHz f32 from digi-ant)
+    // Subscribe to phone_stt (16kHz f32 typed bus from digi-ant)
     let raw_svc = node.service_builder(&"phone_stt".try_into()?)
-        .publish_subscribe::<[u8]>().open_or_create()?;
+        .publish_subscribe::<[f32]>().open_or_create()?;
     let sub = raw_svc.subscriber_builder().create()?;
 
     // Publish to stt_audio (16kHz f32 for STT/Parakeet)
@@ -83,17 +81,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .publish_subscribe::<[u8]>().open_or_create()?;
     let pub_ = audio_svc.publisher_builder().initial_max_slice_len(4 * 1024 * 1024).create()?;
 
-    eprintln!("[PHONE-SILERO] Bus: sub='phone_stt' pub='stt_audio' — READY");
+    eprintln!("[PHONE-SILERO] Bus: sub='phone_stt'[f32] pub='stt_audio'[u8] — READY");
 
     let mut state = State::Silence;
     let mut silence_count: usize = 0;
     let mut utterance: Vec<f32> = Vec::with_capacity(cfg.max_samples());
     let mut incoming: Vec<f32> = Vec::new();
 
+    // Stream state: track data flow for cleanup only (not for utterance boundaries)
+    // Utterance boundaries are handled by the VAD state machine (silence_frames_to_end)
+    // Stream cleanup happens when the call/stream truly ends — not latency-sensitive
+    const STREAM_CLEANUP_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2000);
+    let mut last_data_at = std::time::Instant::now();
+    let mut stream_active = false;
+
     loop {
+        let mut received_this_cycle = false;
         while let Some(sample) = sub.receive()? {
             let p = sample.payload();
-            incoming.extend(p.chunks(4).map(|c| f32::from_le_bytes([c[0],c[1],c[2],c[3]])));
+            incoming.extend_from_slice(p);
+            last_data_at = std::time::Instant::now();
+            stream_active = true;
+            received_this_cycle = true;
         }
 
         while incoming.len() >= CHUNK_SIZE {
@@ -114,6 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if !speech { silence_count = 1; state = State::Trailing; }
                     if utterance.len() >= cfg.max_samples() {
                         publish(&mut utterance, &pub_)?;
+                        model.reset_states();
                         state = State::Silence;
                     }
                 },
@@ -126,20 +136,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if utterance.len() >= cfg.min_samples() {
                                 publish(&mut utterance, &pub_)?;
                             } else { eprintln!("[PHONE-SILERO] Too short — skip"); }
+                            model.reset_states();
                             state = State::Silence; silence_count = 0; utterance.clear();
                         }
                     }
                 },
             }
         }
+
+        // Data-driven EOS: only when stream was active and data stopped flowing
+        // This is NOT an utterance boundary — the VAD state machine handles those
+        // This is stream cleanup: publish any remaining active utterance when the
+        // upstream (digi-ant) has gone completely silent for 2 seconds
+        if stream_active && !received_this_cycle && last_data_at.elapsed() > STREAM_CLEANUP_TIMEOUT {
+            if state != State::Silence {
+                if !incoming.is_empty() {
+                    utterance.extend(incoming.drain(..));
+                }
+                if utterance.len() >= cfg.min_samples() {
+                    eprintln!("[PHONE-SILERO] Stream ended — publishing remaining utterance");
+                    publish(&mut utterance, &pub_)?;
+                } else if !utterance.is_empty() {
+                    eprintln!("[PHONE-SILERO] Stream ended — utterance too short ({} samples), skip", utterance.len());
+                }
+                state = State::Silence;
+                silence_count = 0;
+                utterance.clear();
+            }
+            if !incoming.is_empty() { incoming.clear(); }
+            model.reset_states();
+            stream_active = false;
+        }
+
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }
 
 fn publish(utt: &mut Vec<f32>, pub_: &iceoryx2::port::publisher::Publisher<ipc::Service, [u8], ()>)
     -> Result<(), Box<dyn std::error::Error>> {
-    normalize(utt);
-    // No decimation — already at 16kHz, exactly what Parakeet expects
+    // No normalization — VAD is transparent, passes audio unmodified
     let dur = utt.len() as f64 / SAMPLE_RATE as f64;
     eprintln!("[PHONE-SILERO] Publish {:.1}s ({} samples @ {}Hz)", dur, utt.len(), SAMPLE_RATE);
     let bytes: Vec<u8> = utt.iter().flat_map(|s| s.to_le_bytes()).collect();
