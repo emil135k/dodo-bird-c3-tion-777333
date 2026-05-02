@@ -10,6 +10,9 @@
 //! Protocol:
 //!   stdin:  [i32 sample_count LE] [f32 samples LE...]
 //!   stdout: UTF-8 text line per transcription
+//!
+//! Contract: stt_audio payloads are complete VAD-segmented utterances
+//! from phone-silero-ant. Each payload is one utterance, not a stream chunk.
 
 use iceoryx2::prelude::*;
 use iceoryx2_bb_system_types::path::Path;
@@ -18,8 +21,8 @@ use iceoryx2_bb_container::semantic_string::SemanticString;
 use std::process::{Command, Stdio};
 use std::io::{Write, BufReader, BufRead};
 
-// Path to the Swift worker binary
 const WORKER_BIN: &str = "/Users/rocketman/.local/bin/parakeet-worker";
+const SAMPLE_RATE: u32 = 16000;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("[STT-ANT] Starting Bus Adapter...");
@@ -38,16 +41,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("[STT-ANT] Swift Worker spawned (PID {})", child.id());
 
-    // iceoryx2 with hardcoded config
+    // iceoryx2
     let mut config = Config::default();
     config.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
     let node = NodeBuilder::new().config(&config).create::<ipc::Service>()?;
 
-    // Subscribe to audio input (f32 samples at 16kHz)
+    // Subscribe to audio input (byte-packed f32 samples at 16kHz from phone-silero-ant)
     let audio_svc = node.service_builder(&"stt_audio".try_into()?)
         .publish_subscribe::<[u8]>()
-        .subscriber_max_buffer_size(64)
-        .history_size(16)
         .open_or_create()?;
     let sub = audio_svc.subscriber_builder().create()?;
 
@@ -61,42 +62,75 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("[STT-ANT] Bus: sub='stt_audio' pub='stt_text' — READY");
 
-    // Use channels to pass text from reader thread to main thread for publishing
+    // Reader thread: Swift worker stdout → mpsc channel
     let (tx, rx) = std::sync::mpsc::channel::<String>();
 
-    // Spawn stdout reader thread
     std::thread::spawn(move || {
         let mut line = String::new();
         loop {
             line.clear();
             match reader.read_line(&mut line) {
-                Ok(0) => break,
+                Ok(0) => {
+                    eprintln!("[STT-ANT] Swift worker stdout closed");
+                    break;
+                }
                 Ok(_) => {
                     let text = line.trim().to_string();
                     if !text.is_empty() {
                         let _ = tx.send(text);
                     }
                 }
-                Err(_) => break,
+                Err(e) => {
+                    eprintln!("[STT-ANT] Swift worker read error: {}", e);
+                    break;
+                }
             }
         }
     });
 
-    // Main loop — forward audio AND publish transcriptions
+    // Main loop
     loop {
+        // Check if Swift worker is still alive
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                eprintln!("[STT-ANT] Swift worker exited with: {}", status);
+                return Err(format!("parakeet-worker died: {}", status).into());
+            }
+            Ok(None) => {} // still running
+            Err(e) => eprintln!("[STT-ANT] Worker status check error: {}", e),
+        }
+
         // Forward audio from bus to Swift worker
         while let Some(sample) = sub.receive()? {
             let payload = sample.payload();
+
+            // Alignment check: payload must be divisible by 4 (f32 samples)
+            if payload.len() % 4 != 0 {
+                eprintln!("[STT-ANT] WARN: payload {} bytes not aligned to 4, skipping", payload.len());
+                continue;
+            }
+
             let sample_count = (payload.len() / 4) as i32;
             if sample_count <= 0 { continue; }
 
-            eprintln!("[STT-ANT] Forwarding {:.1}s audio", sample_count as f64 / 16000.0);
-            worker_stdin.write_all(&sample_count.to_le_bytes())?;
-            worker_stdin.write_all(payload)?;
-            worker_stdin.flush()?;
+            let duration_s = sample_count as f64 / SAMPLE_RATE as f64;
+            eprintln!("[STT-ANT] Forwarding {:.1}s audio ({} samples)", duration_s, sample_count);
+
+            if let Err(e) = worker_stdin.write_all(&sample_count.to_le_bytes()) {
+                eprintln!("[STT-ANT] Worker stdin write error: {}", e);
+                break;
+            }
+            if let Err(e) = worker_stdin.write_all(payload) {
+                eprintln!("[STT-ANT] Worker stdin write error: {}", e);
+                break;
+            }
+            if let Err(e) = worker_stdin.flush() {
+                eprintln!("[STT-ANT] Worker stdin flush error: {}", e);
+                break;
+            }
         }
 
-        // Publish any transcriptions from Swift worker
+        // Publish transcriptions from Swift worker
         while let Ok(text) = rx.try_recv() {
             eprintln!("[STT-ANT] Transcribed: \"{}\"", text);
             let bytes = text.as_bytes();

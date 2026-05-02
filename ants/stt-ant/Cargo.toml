@@ -1,11 +1,11 @@
 [package]
 name = "stt-ant"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "STT Ant — Bus Adapter for Parakeet CoreML Swift Worker. Pipes, not bridges."
-authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+authors = ["Emil & Cody — Sparked Matter LLC"]
 
 [dependencies]
-iceoryx2 = "0.6"
-iceoryx2-bb-system-types = "0.6"
-iceoryx2-bb-container = "0.6"
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"

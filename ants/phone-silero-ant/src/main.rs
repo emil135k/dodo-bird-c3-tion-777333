@@ -144,26 +144,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Data-driven EOS: only when stream was active and data stopped flowing
-        // This is NOT an utterance boundary — the VAD state machine handles those
-        // This is stream cleanup: publish any remaining active utterance when the
-        // upstream (digi-ant) has gone completely silent for 2 seconds
+        // Stream cleanup: upstream has gone silent for 2 seconds.
+        // This is NOT a VAD utterance boundary. It is forced finalization
+        // of any VAD-confirmed speech due to stream loss or session end.
         if stream_active && !received_this_cycle && last_data_at.elapsed() > STREAM_CLEANUP_TIMEOUT {
             if state != State::Silence {
                 if !incoming.is_empty() {
                     utterance.extend(incoming.drain(..));
                 }
                 if utterance.len() >= cfg.min_samples() {
-                    eprintln!("[PHONE-SILERO] Stream ended — publishing remaining utterance");
+                    // Forced finalization: VAD confirmed speech but stream ended
+                    // before silence_frames_to_end could close the utterance naturally.
+                    eprintln!("[PHONE-SILERO] FORCED FINAL: stream lost with active speech ({} samples) — NOT a VAD closure",
+                        utterance.len());
                     publish(&mut utterance, &pub_)?;
                 } else if !utterance.is_empty() {
-                    eprintln!("[PHONE-SILERO] Stream ended — utterance too short ({} samples), skip", utterance.len());
+                    // Abandoned: too short, discard as noise
+                    eprintln!("[PHONE-SILERO] DISCARD: abandoned stream, utterance too short ({} samples)",
+                        utterance.len());
                 }
                 state = State::Silence;
                 silence_count = 0;
                 utterance.clear();
+            } else if !incoming.is_empty() {
+                // In Silence but stale samples remain — discard
+                eprintln!("[PHONE-SILERO] DISCARD: {} stale incoming samples from ended stream", incoming.len());
             }
-            if !incoming.is_empty() { incoming.clear(); }
+            incoming.clear();
             model.reset_states();
             stream_active = false;
         }
