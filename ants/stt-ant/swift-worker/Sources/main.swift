@@ -38,6 +38,11 @@ struct ParakeetWorker {
 
         fputs("[PARAKEET-WORKER] Ready (CoreML ANE)\n", stderr)
 
+        // Readiness handshake: emit READY on stdout so Rust knows model is loaded
+        if let data = "<ready>\n".data(using: .utf8) {
+            FileHandle.standardOutput.write(data)
+        }
+
         // Read loop — stdin protocol: [i32 sample_count][f32 samples...]
         let stdinHandle = FileHandle.standardInput
         let stdoutHandle = FileHandle.standardOutput
