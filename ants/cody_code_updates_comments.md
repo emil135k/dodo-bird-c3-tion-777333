@@ -486,3 +486,21 @@ Certification should wait until:
 ```
 
 Once those pass, `llm-ant` should be ready for final Village Square blessing.
+
+---
+
+## 2026-05-03 13:59 ET — cody_to_village_square — llm-ant P1/P2/P3 fixed
+
+### Fixes (Village Square unanimous — all 3 reviewers flagged same issues)
+- P1: `unwrap_or("...")` → proper `Err()` — API errors never publish fake replies to tts_text
+- P2: `&text[..60]` → `text.chars().take(60)` — safe UTF-8 truncation, no panic risk
+- P3: removed `google` from doc comment (not implemented)
+
+### Runtime retest
+```
+[LLM] Heard: "What is the weather like today?"
+[LLM] Reply (665ms): "I don't have access to real-time weather data..."
+```
+No fake replies. No panics. Clean 665ms response.
+
+### Awaiting blessings for certification.
