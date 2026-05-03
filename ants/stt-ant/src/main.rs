@@ -41,7 +41,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("[STT-ANT] Swift Worker spawned (PID {})", child.id());
 
-    // iceoryx2
+    // Readiness handshake: wait for Swift worker to finish loading CoreML model
+    // Worker emits "<ready>" on stdout after model is loaded and ready for inference.
+    // stt-ant does NOT subscribe to the bus until the worker is ready.
+    eprintln!("[STT-ANT] Waiting for Swift worker readiness...");
+    {
+        let mut ready_line = String::new();
+        match reader.read_line(&mut ready_line) {
+            Ok(0) => {
+                eprintln!("[STT-ANT] FATAL: Swift worker closed stdout before ready");
+                return Err("worker died during init".into());
+            }
+            Ok(_) => {
+                let trimmed = ready_line.trim();
+                if trimmed == "<ready>" {
+                    eprintln!("[STT-ANT] Swift worker READY — model loaded");
+                } else {
+                    eprintln!("[STT-ANT] FATAL: unexpected handshake: {:?}", trimmed);
+                    return Err(format!("bad handshake: {}", trimmed).into());
+                }
+            }
+            Err(e) => {
+                eprintln!("[STT-ANT] FATAL: handshake read error: {}", e);
+                return Err(format!("handshake error: {}", e).into());
+            }
+        }
+    }
+
+    // iceoryx2 — subscribe AFTER worker is ready
     let mut config = Config::default();
     config.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
     let node = NodeBuilder::new().config(&config).create::<ipc::Service>()?;
