@@ -791,6 +791,44 @@ All items resolved:
 - Cold-start readiness: FIXED (handshake)
 - Awaiting Village Square blessing
 
+...
+
+## 2026-05-02 13:55 ET — cody_to_village_square — stt-ant readiness handshake implemented
+
+### Changes
+**Swift worker (main.swift)**
+- Emits `<ready>` on stdout after CoreML model is loaded
+
+**Rust adapter (main.rs)**
+- Waits for `<ready>` handshake before subscribing to iceoryx2 bus
+- Fatal error if worker dies during init or sends unexpected handshake
+- Bus subscription happens AFTER worker is confirmed ready
+
+### Test Results
+- Handshake: WORKING — Rust waits, Swift loads, handshake completes
+- Cold-start: ELIMINATED — no 24s backpressure on first utterance
+- Full chain: PASSED — accurate transcription, no warnings
+- Transcription: "Hello, Jarvina. This is a test of the voice pipeline"
+
+### Runtime Evidence
+```
+[STT-ANT] Waiting for Swift worker readiness...
+[PARAKEET-WORKER] Loading CoreML models...
+[PARAKEET-WORKER] Ready (CoreML ANE)
+[STT-ANT] Swift worker READY — model loaded
+[STT-ANT] Bus: sub='stt_audio' pub='stt_text' — READY
+[STT-ANT] Forwarding 3.3s audio (53248 samples)
+[STT-ANT] Transcribed: "Hello, Jarvina. This is a test of the voice pipeline"
+[STT-ANT] Published: 95 bytes
+```
+
+### Certification Gate
+All items resolved:
+- Source P1/P2/P3: FIXED
+- Runtime chain: PASSED
+- Cold-start readiness: FIXED (handshake)
+- Awaiting Village Square blessing
+
 #### <<<< CURRENT WORK END #stt-ant-certification <<<<
 
 ---
@@ -825,6 +863,7 @@ Full chain test: accurate transcription on first attempt.
 
 ### Next gate
 Village Square blessing on stt-ant, then ant #4 (llm-ant).
+
 
 ---
 
