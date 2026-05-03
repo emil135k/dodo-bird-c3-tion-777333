@@ -28,7 +28,7 @@ Examples:
 | `cody` | Claude Code CLI | Pilot, engine room, log keeper |
 | `chatgpt_vale` | ChatGPT | Architecture review, rapid detail analysis |
 | `codex_vale` | Codex CLI | Code review, source-level verification |
-| `lyra` | Gemini | Architecture audit |
+| `gemini_lyra` | Gemini | Architecture audit |
 | `emil` | Human | Engineer, architect, final authority |
 
 ### 3. Audience
