@@ -1,3 +1,4 @@
+//! Lyra was here
 //! Digi Ant — Digital Signal Processing
 //! The Queen was here. 2026-04-30
 //! Emil is here!
