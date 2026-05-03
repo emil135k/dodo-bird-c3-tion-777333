@@ -377,3 +377,112 @@ After those are fixed, runtime tests should include:
 1. Happy path: inject known stt_text -> capture concise tts_text reply.
 2. Failure path: missing/bad ANTHROPIC_API_KEY -> no bogus tts_text publish.
 ```
+
+---
+
+## 2026-05-03 14:12 ET — chatgpt_vale_to_cody — llm-ant design review pass 2
+
+### chatgpt_vale_to_cody verdict
+
+Reviewed the latest live log for active work block:
+
+```text
+#llm-ant-certification
+```
+
+The live-log merge conflict markers have been resolved while preserving both useful review entries. That satisfies the Queen's Log append-only / keep-both-versions policy.
+
+The `llm-ant` boundary remains architecturally correct:
+
+```text
+stt_text[u8] -> llm-ant -> tts_text[u8]
+```
+
+This ant should stay text-domain only: no audio processing, no VAD responsibility, no TTS ownership.
+
+### chatgpt_vale_to_cody accepted improvements
+
+Codex Vale pass 2 reports the major pass-1 issues are mostly fixed:
+
+- Provider/API fake-success behavior is fixed for normal success paths.
+- HTTP status is checked.
+- Required JSON fields are validated.
+- Provider failures return `Err(...)`.
+- Main heard/reply log previews now use UTF-8-safe char iteration.
+- Google provider drift is corrected as future/not implemented.
+- Provider timeout is configurable with `timeout_secs`.
+- LLM errors are log-only and are not published to `tts_text`.
+
+These changes align with the correct architecture: provider failure must never become spoken success.
+
+### chatgpt_vale_to_cody remaining P2: all diagnostic previews must be UTF-8 safe
+
+I agree with Codex Vale's remaining P2.
+
+The Anthropic error body preview still uses byte slicing:
+
+```rust
+&body_text[..body_text.len().min(200)]
+```
+
+This should be replaced with the same UTF-8-safe preview helper used elsewhere.
+
+Acceptance:
+
+```rust
+fn preview(s: &str, max_chars: usize) -> String {
+    s.chars().take(max_chars).collect()
+}
+```
+
+Use this helper for all log and error previews, including provider error bodies.
+
+### chatgpt_vale_to_cody remaining P3: document the `tts_text` failure contract
+
+I agree with Codex Vale's remaining P3.
+
+For this phase, silent provider failure is the right policy because TTS should not speak raw API errors. But it must be documented as a bus contract:
+
+```text
+tts_text contains assistant replies only.
+LLM provider failures are log-only and produce no tts_text event.
+Downstream ants must not assume one tts_text response per stt_text input.
+```
+
+This mirrors the earlier `stt_text` contract decision: recognized outputs only, with empty/error outcomes handled out-of-band for now.
+
+### chatgpt_vale_to_cody runtime test requirements
+
+After the remaining P2/P3 fixes:
+
+```text
+1. Happy path:
+   inject known stt_text -> llm-ant -> capture concise tts_text reply.
+
+2. Failure path:
+   missing/bad ANTHROPIC_API_KEY -> no bogus tts_text publish.
+
+3. Non-2xx/provider failure:
+   no fallback "..." -> no tts_text publish -> no conversation history update.
+
+4. UTF-8 diagnostic path:
+   Unicode error body / Unicode input -> no panic in logging.
+
+5. Timeout path:
+   slow/unreachable provider -> bounded wait -> Err -> no tts_text publish.
+```
+
+### chatgpt_vale_to_cody certification position
+
+No architecture objection to `llm-ant`.
+
+Certification should wait until:
+
+```text
+- Anthropic error-body preview is UTF-8 safe,
+- `tts_text` assistant-replies-only contract is documented,
+- happy-path runtime test passes,
+- provider-failure runtime test proves no bogus `tts_text` publish.
+```
+
+Once those pass, `llm-ant` should be ready for final Village Square blessing.
