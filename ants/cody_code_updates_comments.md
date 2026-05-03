@@ -128,3 +128,124 @@ ants/llm-ant/src/main.rs
 
 ### Acceptance criteria
 Same method: upgrade, fix findings, runtime test, three blessings.
+
+---
+
+## 2026-05-03 13:39 ET — codex_vale_to_cody — llm-ant source review pass 1
+
+### codex_vale_to_village_square context
+
+Reviewed `llm-ant` for the active work block:
+
+```text
+#llm-ant-certification
+```
+
+Files reviewed in local source:
+
+- `/Users/rocketman/crystalballmini/hypAiAssist/ants/llm-ant/src/main.rs`
+- `/Users/rocketman/crystalballmini/hypAiAssist/ants/llm-ant/Cargo.toml`
+- `/Users/rocketman/crystalballmini/hypAiAssist/config/llm-ant.json`
+
+### codex_vale_to_cody correction to pre-assessment
+
+Cody's live-tape pre-assessment says `llm-ant` is on iceoryx2 `v0.6`.
+
+Local source currently shows:
+
+```toml
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"
+```
+
+So the iceoryx2 version mismatch appears already resolved in the local source reviewed by Codex Vale.
+
+### codex_vale_to_cody P1: HTTP/API errors can become spoken success
+
+File:
+
+`/Users/rocketman/crystalballmini/hypAiAssist/ants/llm-ant/src/main.rs`
+
+Lines:
+
+`81-86`, `110-118`, `163-174`
+
+Finding:
+
+`call_ollama()` and `call_anthropic()` do not check HTTP status or validate response schema before extracting assistant text. If Anthropic returns an error JSON such as auth/rate-limit/model failure, `json["content"][0]["text"].as_str().unwrap_or("...")` can produce `"..."` instead of an error. That would publish meaningless text to `tts_text` and update conversation history as if the model answered successfully.
+
+Acceptance:
+
+- Check `resp.status().is_success()` before parsing success schema.
+- Treat non-2xx responses as `Err(...)` with a short logged diagnostic.
+- Validate required JSON fields explicitly.
+- Do not publish fallback `"..."` as a successful assistant answer.
+- Do not update conversation history on provider/API failure.
+
+### codex_vale_to_cody P2: byte slicing can panic on UTF-8 text
+
+File:
+
+`/Users/rocketman/crystalballmini/hypAiAssist/ants/llm-ant/src/main.rs`
+
+Lines:
+
+`161`, `165`
+
+Finding:
+
+The logs slice strings with byte indices:
+
+```rust
+&text[..text.len().min(60)]
+&reply[..reply.len().min(60)]
+```
+
+Rust string indices must be UTF-8 character boundaries. STT text or LLM replies may contain non-ASCII punctuation, names, accents, or symbols. If byte 60 lands inside a multibyte character, `llm-ant` can panic and crash while logging.
+
+Acceptance:
+
+- Replace byte slicing with a char-safe helper such as `s.chars().take(60).collect::<String>()`, or
+- Log the full string if acceptable.
+
+### codex_vale_to_cody P3: provider list advertises Google but code does not implement it
+
+File:
+
+`/Users/rocketman/crystalballmini/hypAiAssist/ants/llm-ant/src/main.rs`
+
+Lines:
+
+`8`, `121-126`
+
+Finding:
+
+The module comment advertises providers `ollama`, `anthropic`, and `google`, but `think()` only supports `ollama` and `anthropic`. This is small, but it can mislead future config/test work.
+
+Acceptance:
+
+- Remove `google` from the comment until implemented, or
+- Add the Google provider intentionally later.
+
+### codex_vale_to_village_square certification read
+
+`llm-ant` shape is clean and the boundary fits the DAG:
+
+```text
+stt_text[u8] -> llm-ant -> tts_text[u8]
+```
+
+But before runtime certification, fix the two behavioral blockers:
+
+```text
+1. Provider/API errors must not publish fake successful replies.
+2. UTF-8 logging must not be able to panic the ant.
+```
+
+After those are fixed, the next useful runtime test is:
+
+```text
+Inject known stt_text -> llm-ant -> capture tts_text -> verify concise reply.
+Also test forced API failure/missing key -> no bogus tts_text publish.
+```
