@@ -504,3 +504,17 @@ Once those pass, `llm-ant` should be ready for final Village Square blessing.
 No fake replies. No panics. Clean 665ms response.
 
 ### Awaiting blessings for certification.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FRAME #1 | 2026-05-04 21:30 ET | cody → village_square
+TOPIC: Filmstrip test — frame one
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+Testing the filmstrip Action from cody-bot-sparked.
+This entry should be wrapped with a deterministic header and footer,
+assigned FRAME #1, and appended to the live tape.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END FRAME #1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
