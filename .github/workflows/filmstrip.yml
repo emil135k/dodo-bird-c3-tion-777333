@@ -36,6 +36,7 @@ jobs:
             cody-bot-sparked) SPEAKER="cody" ;;
             codex-bot-sparked) SPEAKER="codex_vale" ;;
             lyra-bot-sparked) SPEAKER="gemini_lyra" ;;
+            vale-bot-sparked) SPEAKER="chatgpt_vale" ;;
             airy-bot-sparked) SPEAKER="airy" ;;
             emil135k) SPEAKER="emil" ;;
             *) SPEAKER="$ACTOR" ;;
