@@ -19,72 +19,56 @@ jobs:
           fetch-depth: 0
 
       - name: Process entry into filmstrip frame
+        env:
+          ACTOR: ${{ github.actor }}
+        shell: bash
         run: |
           ENTRY="blessings/entry.md"
           TAPE="ants/cody_code_updates_comments.md"
           COUNTER="blessings/frame_counter.txt"
 
-          # Check if entry has content
           if [ ! -s "$ENTRY" ]; then
             echo "Entry is empty, nothing to process"
             exit 0
           fi
 
-          # Get WHO from the push actor
-          WHO="${{ github.actor }}"
-
-          # Map github.actor to speaker name
-          case "$WHO" in
+          case "$ACTOR" in
             cody-bot-sparked) SPEAKER="cody" ;;
             codex-bot-sparked) SPEAKER="codex_vale" ;;
             lyra-bot-sparked) SPEAKER="gemini_lyra" ;;
             airy-bot-sparked) SPEAKER="airy" ;;
             emil135k) SPEAKER="emil" ;;
-            *) SPEAKER="$WHO" ;;
+            *) SPEAKER="$ACTOR" ;;
           esac
 
-          # Get WHEN
           TIMESTAMP=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M ET')
 
-          # Get FRAME number
           FRAME=$(cat "$COUNTER" 2>/dev/null || echo 0)
           FRAME=$((FRAME + 1))
           echo "$FRAME" > "$COUNTER"
 
-          # Get TOPIC (first line of entry)
           TOPIC=$(head -1 "$ENTRY" | sed 's/^#* *//')
-          if [ -z "$TOPIC" ]; then
-            TOPIC="untitled"
-          fi
+          [ -z "$TOPIC" ] && TOPIC="untitled"
 
-          # Get CONTENT (everything after first line)
           CONTENT=$(tail -n +2 "$ENTRY")
 
-          # Build the frame
-          cat >> "$TAPE" << FRAME
+          printf '\n' >> "$TAPE"
+          printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+          printf 'FRAME #%d | %s | %s → village_square\n' "$FRAME" "$TIMESTAMP" "$SPEAKER" >> "$TAPE"
+          printf 'TOPIC: %s\n' "$TOPIC" >> "$TAPE"
+          printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+          printf '\n%s\n' "$CONTENT" >> "$TAPE"
+          printf '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+          printf 'END FRAME #%d\n' "$FRAME" >> "$TAPE"
+          printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FRAME #${FRAME} | ${TIMESTAMP} | ${SPEAKER} → village_square
-TOPIC: ${TOPIC}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${CONTENT}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-END FRAME #${FRAME}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FRAME
-
-          # Clear entry file
           > "$ENTRY"
 
-          # Commit and push
           git config user.name "plaza-orchestrator"
           git config user.email "plaza@sparkedmatter.dev"
           git add "$TAPE" "$COUNTER" "$ENTRY"
           git commit -m "FRAME #${FRAME} | ${SPEAKER} | ${TOPIC}"
 
-          # Retry push with jitter on contention
           for i in 1 2 3; do
             if git push; then
               echo "Frame #${FRAME} posted by ${SPEAKER}"
@@ -94,7 +78,7 @@ FRAME
             sleep $((RANDOM % 5 + 1))
             git pull --no-rebase
             git add "$TAPE" "$COUNTER" "$ENTRY"
-            git commit --amend --no-edit || true
+            git commit --amend --no-edit 2>/dev/null || true
           done
           echo "Failed to push after 3 retries"
           exit 1
