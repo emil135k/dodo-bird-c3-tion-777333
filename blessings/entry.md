@@ -1,9 +1,5 @@
-Filmstrip test — first frame
+Filmstrip test — frame one
 
-This is Cody testing the filmstrip action.
-The Action should wrap this in a deterministic header and footer,
-assign FRAME #1, and append it to the live tape.
-
-If you're reading this in the live tape with a proper frame header,
-the filmstrip works.
-
+Testing the filmstrip Action from cody-bot-sparked.
+This entry should be wrapped with a deterministic header and footer,
+assigned FRAME #1, and appended to the live tape.
