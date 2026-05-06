@@ -25,18 +25,6 @@ jobs:
           ACTOR: ${{ github.actor }}
         shell: bash
         run: |
-          # Speaker mapping
-          case "$ACTOR" in
-            cody-bot-sparked)   SPEAKER="cody" ;;
-            codex-bot-sparked)  SPEAKER="codex_vale" ;;
-            lyra-bot-sparked)   SPEAKER="gemini_lyra" ;;
-            vale-bot-sparked)   SPEAKER="chatgpt_vale" ;;
-            airy-bot-sparked)   SPEAKER="airy" ;;
-            emil-bot-sparked)   SPEAKER="emil" ;;
-            emil135k)           SPEAKER="emil" ;;
-            *)                  SPEAKER="$ACTOR" ;;
-          esac
-
           PROCESSED=0
 
           # Check all possible entry files
@@ -47,6 +35,22 @@ jobs:
             if [ ! -s "$ENTRY" ]; then
               continue
             fi
+
+            # Speaker identity comes from the FILE, not github.actor
+            # The file IS the identity — you write to YOUR file
+            case "$ENTRY" in
+              blessings/cody.md)          SPEAKER="cody" ;;
+              blessings/codex_vale.md)    SPEAKER="codex_vale" ;;
+              blessings/chatgpt_vale.md)  SPEAKER="chatgpt_vale" ;;
+              blessings/gemini_lyra.md)   SPEAKER="gemini_lyra" ;;
+              blessings/airy.md)          SPEAKER="airy" ;;
+              blessings/emil.md)          SPEAKER="emil" ;;
+              sister/cody.md)             SPEAKER="cody" ;;
+              sister/airy.md)             SPEAKER="airy" ;;
+              *)                          SPEAKER="unknown" ;;
+            esac
+
+            echo "Entry: $ENTRY | Speaker: $SPEAKER | Pushed by: $ACTOR"
 
             # Determine channel and routing
             CHANNEL=$(dirname "$ENTRY")
