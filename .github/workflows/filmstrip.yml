@@ -114,15 +114,12 @@ jobs:
             # Content is the FULL file (including first line if it's the whole review)
             CONTENT=$(cat "$ENTRY")
 
-            printf '\n' >> "$TAPE"
-            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
-            printf 'FRAME #%d | %s | %s → %s\n' "$FRAME" "$TIMESTAMP" "$SPEAKER" "$CHANNEL" >> "$TAPE"
-            printf 'TOPIC: %s\n' "$TOPIC" >> "$TAPE"
-            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
-            printf '\n%s\n' "$CONTENT" >> "$TAPE"
-            printf '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+            printf '\n\n' >> "$TAPE"
+            printf 'BEGIN FRAME #%d | %s | %s → %s | %s\n' "$FRAME" "$TIMESTAMP" "$SPEAKER" "$CHANNEL" "$TOPIC" >> "$TAPE"
+            printf '\n\n' >> "$TAPE"
+            printf '%s\n' "$CONTENT" >> "$TAPE"
+            printf '\n\n' >> "$TAPE"
             printf 'END FRAME #%d\n' "$FRAME" >> "$TAPE"
-            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
 
             > "$ENTRY"
 
