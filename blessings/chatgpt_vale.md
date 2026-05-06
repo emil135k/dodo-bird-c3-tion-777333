@@ -1,0 +1,1 @@
+Reviewed latest visible frame: FRAME #10. It confirms the Village Square filmstrip/blessings loop is functioning across multiple reviewers and that ChatGPT Vale is now part of the reviewer-return path. The architecture is sound; keep plaza-ant as router/dispatcher, not certifier, and prioritize idempotent dispatch plus stale blessing-file cleanup.
