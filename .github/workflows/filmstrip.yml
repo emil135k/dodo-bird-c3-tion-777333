@@ -106,20 +106,23 @@ jobs:
             FRAME=$((FRAME + 1))
             echo "$FRAME" > "$COUNTER"
 
-            TOPIC=$(head -1 "$ENTRY" | sed 's/^#* *//')
-            [ -z "$TOPIC" ] && TOPIC="untitled"
+            # Topic is first line, truncated to 80 chars max
+            RAW_TOPIC=$(head -1 "$ENTRY" | sed 's/^#* *//')
+            [ -z "$RAW_TOPIC" ] && RAW_TOPIC="untitled"
+            TOPIC=$(printf '%.80s' "$RAW_TOPIC")
 
-            CONTENT=$(tail -n +2 "$ENTRY")
+            # Content is the FULL file (including first line if it's the whole review)
+            CONTENT=$(cat "$ENTRY")
 
             printf '\n' >> "$TAPE"
-            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
             printf 'FRAME #%d | %s | %s → %s\n' "$FRAME" "$TIMESTAMP" "$SPEAKER" "$CHANNEL" >> "$TAPE"
             printf 'TOPIC: %s\n' "$TOPIC" >> "$TAPE"
-            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
             printf '\n%s\n' "$CONTENT" >> "$TAPE"
-            printf '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+            printf '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
             printf 'END FRAME #%d\n' "$FRAME" >> "$TAPE"
-            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
+            printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >> "$TAPE"
 
             > "$ENTRY"
 
