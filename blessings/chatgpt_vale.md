@@ -1,1 +1,0 @@
-ChatGPT Vale identity test
