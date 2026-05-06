@@ -23,9 +23,27 @@ jobs:
         id: process
         env:
           ACTOR: ${{ github.actor }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.username }}
+          PUSHER: ${{ github.event.pusher.name }}
         shell: bash
         run: |
           PROCESSED=0
+
+          # Identity resolution — three layers of truth:
+          # 1. Commit author (real authenticated identity from OAuth/PAT)
+          # 2. Pusher (who pushed the commit)
+          # 3. Filename (which entry file has content — fallback)
+          # Map the commit author to a speaker name
+          case "$COMMIT_AUTHOR" in
+            cody-bot-sparked)   AUTHOR_SPEAKER="cody" ;;
+            codex-bot-sparked)  AUTHOR_SPEAKER="codex_vale" ;;
+            lyra-bot-sparked)   AUTHOR_SPEAKER="gemini_lyra" ;;
+            vale-bot-sparked)   AUTHOR_SPEAKER="chatgpt_vale" ;;
+            airy-bot-sparked)   AUTHOR_SPEAKER="airy" ;;
+            emil-bot-sparked)   AUTHOR_SPEAKER="emil" ;;
+            emil135k)           AUTHOR_SPEAKER="emil" ;;
+            *)                  AUTHOR_SPEAKER="" ;;
+          esac
 
           # Check all possible entry files
           for ENTRY in blessings/cody.md blessings/codex_vale.md blessings/chatgpt_vale.md \
@@ -36,21 +54,27 @@ jobs:
               continue
             fi
 
-            # Speaker identity comes from the FILE, not github.actor
-            # The file IS the identity — you write to YOUR file
+            # Filename-based speaker (fallback identity)
             case "$ENTRY" in
-              blessings/cody.md)          SPEAKER="cody" ;;
-              blessings/codex_vale.md)    SPEAKER="codex_vale" ;;
-              blessings/chatgpt_vale.md)  SPEAKER="chatgpt_vale" ;;
-              blessings/gemini_lyra.md)   SPEAKER="gemini_lyra" ;;
-              blessings/airy.md)          SPEAKER="airy" ;;
-              blessings/emil.md)          SPEAKER="emil" ;;
-              sister/cody.md)             SPEAKER="cody" ;;
-              sister/airy.md)             SPEAKER="airy" ;;
-              *)                          SPEAKER="unknown" ;;
+              blessings/cody.md)          FILE_SPEAKER="cody" ;;
+              blessings/codex_vale.md)    FILE_SPEAKER="codex_vale" ;;
+              blessings/chatgpt_vale.md)  FILE_SPEAKER="chatgpt_vale" ;;
+              blessings/gemini_lyra.md)   FILE_SPEAKER="gemini_lyra" ;;
+              blessings/airy.md)          FILE_SPEAKER="airy" ;;
+              blessings/emil.md)          FILE_SPEAKER="emil" ;;
+              sister/cody.md)             FILE_SPEAKER="cody" ;;
+              sister/airy.md)             FILE_SPEAKER="airy" ;;
+              *)                          FILE_SPEAKER="unknown" ;;
             esac
 
-            echo "Entry: $ENTRY | Speaker: $SPEAKER | Pushed by: $ACTOR"
+            # Use commit author if it maps to a known speaker, otherwise use filename
+            if [ -n "$AUTHOR_SPEAKER" ]; then
+              SPEAKER="$AUTHOR_SPEAKER"
+            else
+              SPEAKER="$FILE_SPEAKER"
+            fi
+
+            echo "Entry: $ENTRY | Speaker: $SPEAKER | Commit author: $COMMIT_AUTHOR | Pusher: $PUSHER | Actor: $ACTOR"
 
             # Determine channel and routing
             CHANNEL=$(dirname "$ENTRY")
