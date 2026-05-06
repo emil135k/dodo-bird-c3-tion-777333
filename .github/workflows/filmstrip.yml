@@ -67,9 +67,16 @@ jobs:
               *)                          FILE_SPEAKER="unknown" ;;
             esac
 
-            # Use commit author if it maps to a known speaker, otherwise use filename
-            if [ -n "$AUTHOR_SPEAKER" ]; then
+            # Identity resolution:
+            # - If commit author maps to a known bot AND matches the file owner, use it (real auth)
+            # - If commit author is a bot but wrong file, flag mismatch
+            # - If commit author is NOT a bot (e.g. emil135k pushing on behalf), use filename
+            # The file is the definitive identity — bots get verified, humans get mapped
+            if [ -n "$AUTHOR_SPEAKER" ] && [ "$AUTHOR_SPEAKER" = "$FILE_SPEAKER" ]; then
               SPEAKER="$AUTHOR_SPEAKER"
+            elif [ -n "$AUTHOR_SPEAKER" ] && [ "$AUTHOR_SPEAKER" != "$FILE_SPEAKER" ]; then
+              SPEAKER="$FILE_SPEAKER"
+              echo "WARNING: commit author ($AUTHOR_SPEAKER) doesn't match file owner ($FILE_SPEAKER)"
             else
               SPEAKER="$FILE_SPEAKER"
             fi
