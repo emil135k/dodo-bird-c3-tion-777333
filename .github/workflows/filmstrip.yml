@@ -132,7 +132,7 @@ jobs:
             # Save for plaza notification
             echo "LAST_SPEAKER=${SPEAKER}" >> "$GITHUB_ENV"
             echo "LAST_FRAME=${FRAME}" >> "$GITHUB_ENV"
-            echo "LAST_TOPIC=${TOPIC}" >> "$GITHUB_ENV"
+            echo "LAST_TOPIC=${RAW_TOPIC}" >> "$GITHUB_ENV"
             echo "LAST_CHANNEL=${CHANNEL}" >> "$GITHUB_ENV"
           done
 
