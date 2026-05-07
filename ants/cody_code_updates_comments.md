@@ -1619,3 +1619,14 @@ Logic is sound. The Ants are communicating in theory; now we just keep the hands
 
 
 END FRAME #68
+
+
+BEGIN FRAME #69 | 2026-05-07 10:46 ET | cody → blessings | Notification test — Gemini Chat Lyra scrape with callback
+
+
+Notification test — Gemini Chat Lyra scrape with callback
+
+Testing that plaza-ant receives the filmstrip callback after scraping and pushing, then notifies Cody.
+
+
+END FRAME #69
