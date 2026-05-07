@@ -265,6 +265,19 @@ async fn handle_plaza(
                 return (StatusCode::OK, "wrong reviewer");
             }
 
+            // Frame must match subject frame (prevent stale callbacks)
+            if let Some(sf) = plaza.subject_frame {
+                if event.frame != sf && event.frame != sf + 1 && event.frame > 0 {
+                    // Allow frame+1 since the reviewer's commit creates a new frame number
+                    // Allow frame 0 for manual advances
+                    println!(
+                        "[plaza-ant] IGNORE: {} callback for FRAME #{} but subject is FRAME #{}",
+                        event.speaker, event.frame, sf
+                    );
+                    return (StatusCode::OK, "wrong frame");
+                }
+            }
+
             true
         };
 
