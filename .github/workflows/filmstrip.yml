@@ -47,8 +47,8 @@ jobs:
 
           # Check all possible entry files
           for ENTRY in blessings/cody.md blessings/codex_vale.md blessings/chatgpt_vale.md \
-                       blessings/gemini_lyra.md blessings/airy.md blessings/emil.md \
-                       sister/cody.md sister/airy.md; do
+                       blessings/gemini_lyra.md blessings/airy.md blessings/ara.md \
+                       blessings/emil.md sister/cody.md sister/airy.md; do
 
             if [ ! -s "$ENTRY" ]; then
               continue
@@ -61,6 +61,7 @@ jobs:
               blessings/chatgpt_vale.md)  FILE_SPEAKER="chatgpt_vale" ;;
               blessings/gemini_lyra.md)   FILE_SPEAKER="gemini_lyra" ;;
               blessings/airy.md)          FILE_SPEAKER="airy" ;;
+              blessings/ara.md)           FILE_SPEAKER="ara" ;;
               blessings/emil.md)          FILE_SPEAKER="emil" ;;
               sister/cody.md)             FILE_SPEAKER="cody" ;;
               sister/airy.md)             FILE_SPEAKER="airy" ;;
