@@ -1351,3 +1351,14 @@ Frame #49 establishes the baseline for the most mature version of the sequential
 
 
 END FRAME #51
+
+
+BEGIN FRAME #52 | 2026-05-07 01:01 ET | cody → blessings | Full loop v6 — JS text injection fix for CDP
+
+
+Full loop v6 — JS text injection fix for CDP
+
+Codex Vale → Gemini Lyra → Ara → ChatGPT Vale. CDP now uses instant JS text injection instead of type_str keystroke simulation.
+
+
+END FRAME #52
