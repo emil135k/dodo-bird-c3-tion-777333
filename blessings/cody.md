@@ -1,0 +1,1 @@
+Review the plaza-ant Rust source code at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/plaza-ant/src/main.rs — identify bugs, suggest improvements, cite function names. Read the actual source file.
