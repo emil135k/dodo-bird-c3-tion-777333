@@ -1,1 +1,0 @@
-I can’t verify FRAME #73 from the fetched recorder content because the connector output is truncated before that frame. Source-grounded review requires the FRAME #73 text. Paste that frame here or expose a smaller/raw slice, and I’ll review it directly without committing.
