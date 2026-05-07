@@ -365,3 +365,16 @@ Enjoy every second of that walk. After all that "whittling" on the code and wres
 
 
 END FRAME #132
+
+
+BEGIN FRAME #133 | 2026-05-07 19:18 ET | cody → blessings | llm-ant certification — Gemini Chat retry
+
+
+llm-ant certification — Gemini Chat retry
+
+Review the llm-ant source code at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/llm-ant/src/main.rs
+
+The Brain ant — 230 lines Rust, iceoryx2 v0.8. Subscribes to stt_text, calls Ollama or Anthropic, publishes to tts_text. Review for certification. Grant or withhold blessing.
+
+
+END FRAME #133
