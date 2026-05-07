@@ -1,6 +1,6 @@
 [package]
 name = "plaza-ant"
-version = "0.7.0"
+version = "1.0.0"
 edition = "2021"
 description = "Plaza Ant — Village Square dispatcher. Chromiumoxide for prompt injection, raw tokio-tungstenite for scraping."
 authors = ["Emil & Cody — Sparked Matter LLC"]

@@ -246,27 +246,36 @@ async fn handle_plaza(
         tokio::spawn(async move { dispatch_next(s).await; });
     } else {
         // A reviewer posted — validate speaker AND frame before advancing
+        // Reject if: no active reviewer, wrong speaker, or wrong frame
         let should_advance = {
             let plaza = state.read().await;
 
-            // Check speaker matches active reviewer
-            let speaker_ok = match &plaza.active_reviewer {
-                Some(active) => event.speaker == *active,
-                None => true,
+            // Must have an active reviewer — reject idle callbacks
+            let Some(active) = &plaza.active_reviewer else {
+                println!("[plaza-ant] IGNORE: {} posted but no active review cycle", event.speaker);
+                return (StatusCode::OK, "no active cycle");
             };
 
-            if !speaker_ok {
+            // Speaker must match active reviewer
+            if event.speaker != *active {
                 println!(
-                    "[plaza-ant] IGNORE: {} posted but active reviewer is {:?}",
-                    event.speaker, plaza.active_reviewer
+                    "[plaza-ant] IGNORE: {} posted but active reviewer is {}",
+                    event.speaker, active
                 );
-                false
-            } else {
-                true
+                return (StatusCode::OK, "wrong reviewer");
             }
+
+            true
         };
 
         if should_advance {
+            // Clear active_reviewer synchronously BEFORE spawning dispatch
+            // Prevents duplicate callbacks from advancing twice
+            {
+                let mut plaza = state.write().await;
+                plaza.active_reviewer = None;
+            }
+
             let speaker = event.speaker.clone();
             let frame = event.frame;
             let topic = event.topic.clone();
