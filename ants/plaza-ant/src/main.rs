@@ -213,6 +213,18 @@ async fn handle_plaza(
     );
 
     if event.speaker == "cody" {
+        // Guard: reject new Cody frames while a review cycle is active
+        {
+            let plaza = state.read().await;
+            if plaza.active_reviewer.is_some() || !plaza.queue.is_empty() {
+                println!(
+                    "[plaza-ant] REJECT: review cycle in progress (active: {:?}, queue: {}). FRAME #{} deferred.",
+                    plaza.active_reviewer, plaza.queue.len(), event.frame
+                );
+                return (StatusCode::OK, "busy");
+            }
+        }
+
         // Build the queue of online reviewers
         let mut plaza = state.write().await;
         plaza.queue.clear();
@@ -233,26 +245,24 @@ async fn handle_plaza(
         let s = state.clone();
         tokio::spawn(async move { dispatch_next(s).await; });
     } else {
-        // A reviewer posted — validate it's the active reviewer before advancing
+        // A reviewer posted — validate speaker AND frame before advancing
         let should_advance = {
             let plaza = state.read().await;
-            match &plaza.active_reviewer {
-                Some(active) => {
-                    if event.speaker == *active {
-                        true
-                    } else {
-                        println!(
-                            "[plaza-ant] IGNORE: {} posted but active reviewer is {}",
-                            event.speaker,
-                            active
-                        );
-                        false
-                    }
-                }
-                None => {
-                    // No active reviewer — accept any callback (scrape push or late arrival)
-                    true
-                }
+
+            // Check speaker matches active reviewer
+            let speaker_ok = match &plaza.active_reviewer {
+                Some(active) => event.speaker == *active,
+                None => true,
+            };
+
+            if !speaker_ok {
+                println!(
+                    "[plaza-ant] IGNORE: {} posted but active reviewer is {:?}",
+                    event.speaker, plaza.active_reviewer
+                );
+                false
+            } else {
+                true
             }
         };
 
@@ -414,8 +424,9 @@ async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, message: &str) 
     }
 
     // Text and Enter must be separate calls — CLI TUIs need the text to land first
+    let safe_msg = shell_safe(message);
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", session, message])
+        .args(["send-keys", "-t", session, &safe_msg])
         .output()
         .await;
 
@@ -456,9 +467,8 @@ async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, 
 
     // Clear browser cache before interacting — prevents stale CDP state
     {
-        use chromiumoxide::cdp::browser_protocol::network::{ClearBrowserCacheParams, ClearBrowserCookiesParams};
+        use chromiumoxide::cdp::browser_protocol::network::ClearBrowserCacheParams;
         let _ = browser.execute(ClearBrowserCacheParams::default()).await;
-        let _ = browser.execute(ClearBrowserCookiesParams::default()).await;
         println!("[plaza-ant] Browser cache cleared for {}", reviewer.display_name);
     }
 
@@ -470,19 +480,13 @@ async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, 
     handler_task.abort();
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    if result.is_err() {
-        println!("[plaza-ant] CDP dispatch failed for {}: {}", reviewer.display_name, result.unwrap_err());
+    if let Err(msg) = result {
+        println!("[plaza-ant] CDP dispatch failed for {}: {}", reviewer.display_name, msg);
         return;
     }
 
     if scrape {
-        // Scrape mode: wait for response, scrape it, write and push locally
         scrape_and_push(tab_match, reviewer).await;
-    }
-    // Self-push mode: reviewer handles their own commit — we just wait for the filmstrip callback
-
-    if let Err(msg) = result {
-        println!("[plaza-ant] CDP dispatch failed for {}: {}", reviewer.display_name, msg);
     }
 }
 
@@ -774,10 +778,10 @@ async fn raw_cdp_evaluate(ws_url: &str, expression: &str) -> Result<String, Stri
 // ── Cody notification ──────────────────────────────────────────────────
 
 async fn notify_cody(message: &str) {
-    println!("[plaza-ant] Notifying Cody: {message}");
-    // Send directly to Cody's Claude Code session — same as Airy relay
+    let safe_msg = shell_safe(message);
+    println!("[plaza-ant] Notifying Cody: {safe_msg}");
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", "cody", message])
+        .args(["send-keys", "-t", "cody", &safe_msg])
         .output()
         .await;
 
