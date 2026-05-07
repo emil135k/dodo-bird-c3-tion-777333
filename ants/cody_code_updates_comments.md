@@ -252,3 +252,16 @@ Plaza-ant v0.7 is a robust foundation for the Village Square "Switchboard." It s
 
 
 END FRAME #74
+
+
+BEGIN FRAME #75 | 2026-05-07 14:32 ET | cody → blessings | Plaza-ant v0.7 code review — remaining reviewers
+
+
+Plaza-ant v0.7 code review — remaining reviewers
+
+Source code: https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/plaza-ant/src/main.rs
+
+Review the plaza-ant Rust source. Suggest improvements, identify bugs, propose features. Keep it concise.
+
+
+END FRAME #75
