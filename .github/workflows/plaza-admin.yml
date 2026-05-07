@@ -1,0 +1,38 @@
+name: Plaza Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      reviewer:
+        description: 'Which reviewer'
+        type: choice
+        options:
+          - codex_vale
+          - gemini_lyra
+          - chatgpt_vale
+          - ara
+          - airy
+          - all
+      action:
+        description: 'What to do'
+        type: choice
+        options:
+          - offline
+          - online
+          - status
+
+jobs:
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send to plaza-ant
+        env:
+          PLAZA_SECRET: ${{ secrets.PLAZA_SECRET }}
+        run: |
+          echo "Plaza Admin: ${{ inputs.action }} → ${{ inputs.reviewer }}"
+          RESPONSE=$(curl -s --max-time 10 -X POST \
+            -H "X-Plaza-Token: $PLAZA_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{"action":"${{ inputs.action }}","reviewer":"${{ inputs.reviewer }}"}' \
+            https://emils-macbook-pro.tail12e909.ts.net/plaza/admin || echo '{"error":"plaza-ant unreachable"}')
+          echo "Response: $RESPONSE"
