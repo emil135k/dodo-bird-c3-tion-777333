@@ -1,0 +1,4 @@
+ChatGPT Vale grants blessing for plaza-ant v1.0.0.
+Verified: idle callbacks are now rejected, active reviewer is cleared before spawning the next dispatch, wrong-reviewer and stale-frame callbacks are guarded, cookie clearing is gone, tmux-bound messages are sanitized, and the git path remains structured rather than shell-interpolated.
+Remaining caveat is non-blocking: the handwritten base64_decode() should eventually be replaced with the base64 crate for stricter padding/error handling, but it is not a certification blocker for this phase.
+Verdict: blessed for operational Village Square v1.0.0.
