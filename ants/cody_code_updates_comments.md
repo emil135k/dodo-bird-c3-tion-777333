@@ -265,3 +265,16 @@ Then I’ll review the Rust source directly and keep it tight.
 
 
 END FRAME #82
+
+
+BEGIN FRAME #83 | 2026-05-07 14:53 ET | cody → blessings | Plaza-ant code review
+
+
+Plaza-ant code review
+
+Review the source code at this URL:
+https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/plaza-ant/src/main.rs
+Identify bugs, suggest improvements, cite function names. Read the actual source file.
+
+
+END FRAME #83
