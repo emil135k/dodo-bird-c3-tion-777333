@@ -76,6 +76,11 @@ const REVIEWERS: &[ReviewerConfig] = &[
         dispatch: DispatchMethod::Tmux { session: "gemini-cli-lyra" },
     },
     ReviewerConfig {
+        entry_file: "blessings/gemini_lyra_chat.md",
+        display_name: "gemini_lyra_chat",
+        dispatch: DispatchMethod::Cdp { tab_match: "gemini.google", scrape: true },
+    },
+    ReviewerConfig {
         entry_file: "blessings/ara.md",
         display_name: "ara",
         dispatch: DispatchMethod::Cdp { tab_match: "grok", scrape: false },
@@ -489,85 +494,53 @@ async fn cdp_send_and_click(
 }
 
 /// Scrape the last assistant response from the browser, write to blessings file, git push
+/// Uses raw tokio-tungstenite websocket — chromiumoxide hangs on repeated connect/disconnect
 async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerConfig) {
     println!("[plaza-ant] Scraping response for {}...", reviewer.display_name);
 
-    // Poll until streaming is done, then scrape — fresh connection each attempt
-    let max_attempts = 36; // 36 * 5s = 3 minutes
+    // Wait for the reviewer to finish responding
+    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+    println!("[plaza-ant]   initial wait done, starting scrape polls...");
+
+    // Find the tab's websocket URL
+    let ws_url = match find_tab_ws(tab_match).await {
+        Some(url) => url,
+        None => {
+            println!("[plaza-ant] ERROR: no tab for {} to scrape", reviewer.display_name);
+            return;
+        }
+    };
+
+    let check_and_scrape_js = r#"(function(){var stop=document.querySelector('button[aria-label=\"Stop generating\"]')||document.querySelector('button[aria-label=\"Stop Response\"]');if(stop)return 'streaming';var streaming=document.querySelector('.result-streaming');if(streaming)return 'streaming';var gemLoading=document.querySelector('.loading-indicator,.response-loading,.thinking-indicator');if(gemLoading)return 'streaming';var msgs=document.querySelectorAll('[data-message-author-role=\"assistant\"]');if(msgs.length>0){var last=msgs[msgs.length-1];var md=last.querySelector('.markdown');return 'SCRAPED:'+(md||last).textContent.trim();}var gemMsgs=document.querySelectorAll('.model-response-text');if(gemMsgs.length>0){return 'SCRAPED:'+gemMsgs[gemMsgs.length-1].textContent.trim();}return 'empty';})()"#;
+
+    let max_attempts = 24;
     let mut response_text = String::new();
 
     for attempt in 0..max_attempts {
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        println!("[plaza-ant]   scrape attempt {}...", attempt + 1);
 
-        let (mut browser, handler) = match Browser::connect(CDP_URL).await {
-            Ok(conn) => conn,
-            Err(e) => {
-                println!("[plaza-ant]   scrape connect error: {} ({}s)", e, (attempt + 1) * 5);
-                continue;
-            }
-        };
+        // Raw websocket — connect, send one evaluate, read one response, disconnect
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            raw_cdp_evaluate(&ws_url, check_and_scrape_js),
+        ).await;
 
-        let handler_task = tokio::spawn(async move {
-            let mut handler = handler;
-            while let Some(event) = handler.next().await { let _ = event; }
-        });
-
-        let _ = browser.fetch_targets().await;
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-        let pages = browser.pages().await.unwrap_or_default();
-        let tab_lower = tab_match.to_lowercase();
-        let mut found_page = None;
-        for p in pages {
-            let url = p.url().await.ok().flatten().unwrap_or_default().to_lowercase();
-            if url.contains(&tab_lower) && !url.contains("codex/cloud") {
-                found_page = Some(p);
-                break;
-            }
-        }
-
-        if let Some(page) = found_page {
-            // Check if still streaming
-            let check_js = r#"
-                (function(){
-                    var stop = document.querySelector('button[aria-label="Stop generating"]')
-                        || document.querySelector('button[aria-label="Stop Response"]');
-                    if (stop) return 'streaming';
-                    var streaming = document.querySelector('.result-streaming');
-                    if (streaming) return 'streaming';
-                    return 'done';
-                })()
-            "#;
-
-            if let Ok(val) = page.evaluate_expression(check_js).await {
-                let status = val.into_value::<String>().unwrap_or_default();
-                if status == "done" {
-                    // Scrape the last assistant message
-                    let scrape_js = r#"
-                        (function(){
-                            var msgs = document.querySelectorAll('[data-message-author-role="assistant"]');
-                            if (msgs.length === 0) return '';
-                            var last = msgs[msgs.length-1];
-                            var md = last.querySelector('.markdown');
-                            return (md || last).textContent.trim();
-                        })()
-                    "#;
-
-                    if let Ok(val) = page.evaluate_expression(scrape_js).await {
-                        response_text = val.into_value::<String>().unwrap_or_default();
-                    }
-
-                    drop(browser);
-                    handler_task.abort();
+        match result {
+            Ok(Ok(text)) => {
+                if text.starts_with("SCRAPED:") {
+                    response_text = text[8..].to_string();
+                    println!("[plaza-ant]   scraped {} chars", response_text.len());
                     break;
+                } else if text == "streaming" {
+                    println!("[plaza-ant]   still streaming... ({}s)", (attempt + 1) * 5);
+                } else {
+                    println!("[plaza-ant]   {} ({}s)", text, (attempt + 1) * 5);
                 }
             }
-            println!("[plaza-ant]   still streaming... ({}s)", (attempt + 1) * 5);
+            Ok(Err(e)) => println!("[plaza-ant]   raw cdp error: {} ({}s)", e, (attempt + 1) * 5),
+            Err(_) => println!("[plaza-ant]   raw cdp timeout ({}s)", (attempt + 1) * 5),
         }
-
-        drop(browser);
-        handler_task.abort();
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
 
     if response_text.is_empty() {
@@ -622,6 +595,64 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerConfig) {
         }
         Err(e) => println!("[plaza-ant] Git command failed: {}", e),
     }
+}
+
+/// Find a tab's websocket debugger URL by matching title/URL
+async fn find_tab_ws(tab_match: &str) -> Option<String> {
+    let resp = reqwest::get(&format!("{}/json/list", CDP_URL)).await.ok()?;
+    let tabs: Vec<serde_json::Value> = resp.json().await.ok()?;
+    let lower = tab_match.to_lowercase();
+    for tab in &tabs {
+        let url = tab.get("url")?.as_str()?.to_lowercase();
+        let tab_type = tab.get("type")?.as_str()?;
+        if tab_type == "page" && url.contains(&lower) && !url.contains("codex/cloud") {
+            return tab.get("webSocketDebuggerUrl")?.as_str().map(String::from);
+        }
+    }
+    None
+}
+
+/// Raw CDP evaluate — connect via tokio-tungstenite, send one Runtime.evaluate, read response, disconnect
+async fn raw_cdp_evaluate(ws_url: &str, expression: &str) -> Result<String, String> {
+    use tokio_tungstenite::connect_async;
+
+    let (mut ws, _) = connect_async(ws_url).await.map_err(|e| format!("ws connect: {}", e))?;
+
+    let msg = serde_json::json!({
+        "id": 1,
+        "method": "Runtime.evaluate",
+        "params": {
+            "expression": expression,
+            "returnByValue": true
+        }
+    });
+
+    use futures::SinkExt;
+    ws.send(tokio_tungstenite::tungstenite::Message::Text(msg.to_string()))
+        .await
+        .map_err(|e| format!("ws send: {}", e))?;
+
+    // Read messages until we find our response (id=1)
+    for _ in 0..20 {
+        if let Some(Ok(frame)) = ws.next().await {
+            if let tokio_tungstenite::tungstenite::Message::Text(text) = frame {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if parsed.get("id").and_then(|v| v.as_u64()) == Some(1) {
+                        let val = parsed
+                            .pointer("/result/result/value")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let _ = ws.close(None).await;
+                        return Ok(val);
+                    }
+                }
+            }
+        }
+    }
+
+    let _ = ws.close(None).await;
+    Err("no response after 20 messages".to_string())
 }
 
 /// Poll for Update File button with fresh connections — called AFTER original connection is dropped
