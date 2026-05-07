@@ -245,38 +245,37 @@ async fn handle_plaza(
         let s = state.clone();
         tokio::spawn(async move { dispatch_next(s).await; });
     } else {
-        // A reviewer posted — validate speaker AND frame before advancing
-        // Reject if: no active reviewer, wrong speaker, or wrong frame
+        // A reviewer posted — validate before advancing queue
         let should_advance = {
             let plaza = state.read().await;
 
-            // Must have an active reviewer — reject idle callbacks
-            let Some(active) = &plaza.active_reviewer else {
-                println!("[plaza-ant] IGNORE: {} posted but no active review cycle", event.speaker);
-                return (StatusCode::OK, "no active cycle");
-            };
-
-            // Speaker must match active reviewer
-            if event.speaker != *active {
-                println!(
-                    "[plaza-ant] IGNORE: {} posted but active reviewer is {}",
-                    event.speaker, active
-                );
-                return (StatusCode::OK, "wrong reviewer");
-            }
-
-            // Frame must be >= subject frame (reviewer frames are always higher)
-            if let Some(sf) = plaza.subject_frame {
-                if event.frame > 0 && event.frame < sf {
-                    println!(
-                        "[plaza-ant] IGNORE: {} callback FRAME #{} is older than subject FRAME #{}",
-                        event.speaker, event.frame, sf
-                    );
-                    return (StatusCode::OK, "stale frame");
+            match &plaza.active_reviewer {
+                Some(active) => {
+                    if event.speaker != *active {
+                        println!("[plaza-ant] IGNORE: {} posted but active is {}", event.speaker, active);
+                        false
+                    } else if let Some(sf) = plaza.subject_frame {
+                        if event.frame > 0 && event.frame < sf {
+                            println!("[plaza-ant] IGNORE: stale FRAME #{} < subject #{}", event.frame, sf);
+                            false
+                        } else {
+                            true
+                        }
+                    } else {
+                        true
+                    }
+                }
+                None => {
+                    // No active reviewer — accept if queue has items (scrape callback)
+                    if !plaza.queue.is_empty() {
+                        println!("[plaza-ant] Scrape callback from {} — advancing queue", event.speaker);
+                        true
+                    } else {
+                        println!("[plaza-ant] IGNORE: {} posted but no active cycle", event.speaker);
+                        false
+                    }
                 }
             }
-
-            true
         };
 
         if should_advance {
@@ -323,7 +322,7 @@ async fn dispatch_next(state: SharedState) {
                 reviewer.display_name, plaza.queue.len()
             );
         }
-        dispatch_reviewer(reviewer, &event).await;
+        dispatch_reviewer(reviewer, &event, state.clone()).await;
     } else {
         println!("[plaza-ant] Queue empty — all reviewers dispatched");
     }
@@ -377,7 +376,7 @@ async fn handle_admin(
     }
 }
 
-async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent) {
+async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state: SharedState) {
     println!(
         "[plaza-ant] Dispatching to {} for FRAME #{}",
         reviewer.display_name, event.frame
@@ -402,6 +401,7 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent) {
     match &reviewer.dispatch {
         DispatchMethod::Tmux { session } => {
             // CLI reviewers must commit and push themselves
+            // They advance the queue via filmstrip callback
             let cli_message = format!(
                 "{} After writing your review to {}, run: git add {} && git commit -m 'FRAME #{} review' && git push",
                 message, reviewer.entry_file, reviewer.entry_file, event.frame
@@ -410,10 +410,16 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent) {
         }
         DispatchMethod::Cdp { tab_match, scrape } => {
             if *scrape {
-                // Scrape reviewers: same message, plaza-ant handles the push
+                // Scrape reviewers: plaza-ant handles the push
                 dispatch_cdp(tab_match, true, reviewer, event, &message).await;
+                // Scrape done — clear active_reviewer so filmstrip callback can advance queue
+                {
+                    let mut plaza = state.write().await;
+                    plaza.active_reviewer = None;
+                    println!("[plaza-ant] Scrape complete for {} — ready for callback", reviewer.display_name);
+                }
             } else {
-                // Self-push reviewers (Ara): must commit and push
+                // Self-push reviewers: they advance via filmstrip callback
                 let push_message = format!(
                     "{} Save your review to {} in repo emil135k/dodo-bird-c3-tion-777333 on main branch. Commit and push the file.",
                     message, reviewer.entry_file
