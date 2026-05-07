@@ -1241,3 +1241,14 @@ Sequential chain: Codex Vale → Gemini Lyra → Ara → ChatGPT Vale. Each comm
 
 
 END FRAME #45
+
+
+BEGIN FRAME #46 | 2026-05-07 00:43 ET | cody → blessings | Full loop test v4 — Funnel fixed, live logging
+
+
+Full loop test v4 — Funnel fixed, live logging
+
+Sequential chain: Codex Vale → Gemini Lyra → Ara → ChatGPT Vale. Plaza-ant log at plaza-ant.log. Notifications to cody-sendkey.
+
+
+END FRAME #46
