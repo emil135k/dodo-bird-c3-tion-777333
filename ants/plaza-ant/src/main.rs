@@ -53,7 +53,9 @@ struct AdminRequest {
 
 enum DispatchMethod {
     Tmux { session: &'static str },
-    Cdp { tab_match: &'static str, needs_confirm: bool },
+    /// self_push: reviewer pushes via their own GitHub connector (Ara, Airy)
+    /// scrape: plaza-ant scrapes response and pushes on their behalf (ChatGPT, Gemini Chat)
+    Cdp { tab_match: &'static str, scrape: bool },
 }
 
 struct ReviewerConfig {
@@ -76,17 +78,17 @@ const REVIEWERS: &[ReviewerConfig] = &[
     ReviewerConfig {
         entry_file: "blessings/ara.md",
         display_name: "ara",
-        dispatch: DispatchMethod::Cdp { tab_match: "grok", needs_confirm: false },
+        dispatch: DispatchMethod::Cdp { tab_match: "grok", scrape: false },
     },
     ReviewerConfig {
         entry_file: "blessings/chatgpt_vale.md",
         display_name: "chatgpt_vale",
-        dispatch: DispatchMethod::Cdp { tab_match: "chatgpt", needs_confirm: true },
+        dispatch: DispatchMethod::Cdp { tab_match: "chatgpt", scrape: true },
     },
     ReviewerConfig {
         entry_file: "blessings/airy.md",
         display_name: "airy",
-        dispatch: DispatchMethod::Cdp { tab_match: "claude.ai", needs_confirm: false },
+        dispatch: DispatchMethod::Cdp { tab_match: "claude.ai", scrape: false },
     },
 ];
 
@@ -264,8 +266,8 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent) {
         DispatchMethod::Tmux { session } => {
             dispatch_tmux(session, reviewer, event).await;
         }
-        DispatchMethod::Cdp { tab_match, needs_confirm } => {
-            dispatch_cdp(tab_match, *needs_confirm, reviewer, event).await;
+        DispatchMethod::Cdp { tab_match, scrape } => {
+            dispatch_cdp(tab_match, *scrape, reviewer, event).await;
         }
     }
 }
@@ -324,16 +326,35 @@ async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, event: &PlazaEv
 
 // ── CDP dispatch (web reviewers via chromiumoxide) ─────────────────────
 
-async fn dispatch_cdp(tab_match: &str, needs_confirm: bool, reviewer: &ReviewerConfig, event: &PlazaEvent) {
-    let prompt = format!(
-        "You are {name}, a peer reviewer in the Village Square. \
-         Read the flight recorder at \
-         https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/cody_code_updates_comments.md \
-         and review the latest frame. Write a brief review and save it to {entry} \
-         in repo emil135k/dodo-bird-c3-tion-777333 on main branch. Commit and push the file. Keep it concise.",
-        name = reviewer.display_name,
-        entry = reviewer.entry_file,
-    );
+async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, event: &PlazaEvent) {
+    let prompt = if scrape {
+        // Scrape mode: reviewer just writes the review, we handle the push
+        format!(
+            "You are {name}, a peer reviewer in the Village Square. \
+             Cody just posted FRAME #{frame} — topic: {topic}. \
+             Read FRAME #{frame} in the flight recorder at \
+             https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/cody_code_updates_comments.md \
+             and review it. Write a brief review as your reply. \
+             Do NOT save to GitHub. Do NOT commit. Just write the review text. Keep it concise.",
+            name = reviewer.display_name,
+            frame = event.frame,
+            topic = event.topic,
+        )
+    } else {
+        // Self-push mode: reviewer saves and commits via their own connector
+        format!(
+            "You are {name}, a peer reviewer in the Village Square. \
+             Cody just posted FRAME #{frame} — topic: {topic}. \
+             Read FRAME #{frame} in the flight recorder at \
+             https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/cody_code_updates_comments.md \
+             and review it. Write a brief review and save it to {entry} \
+             in repo emil135k/dodo-bird-c3-tion-777333 on main branch. Commit and push the file. Keep it concise.",
+            name = reviewer.display_name,
+            frame = event.frame,
+            topic = event.topic,
+            entry = reviewer.entry_file,
+        )
+    };
 
     // Connect to existing Chrome
     let (mut browser, handler) = match Browser::connect(CDP_URL).await {
@@ -355,18 +376,24 @@ async fn dispatch_cdp(tab_match: &str, needs_confirm: bool, reviewer: &ReviewerC
         }
     });
 
-    // Send the prompt — then drop connection BEFORE polling
-    let result = cdp_send_and_click(&mut browser, tab_match, needs_confirm, &prompt, reviewer, event).await;
+    // Send the prompt
+    let result = cdp_send_and_click(&mut browser, tab_match, &prompt, reviewer, event).await;
 
     // Drop original connection FIRST — two CDP connections cause response confusion
     drop(browser);
     handler_task.abort();
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    // If confirm needed and prompt was sent, poll with fresh connections
-    if result.is_ok() && needs_confirm {
-        poll_update_file_button(tab_match, reviewer).await;
+    if result.is_err() {
+        println!("[plaza-ant] CDP dispatch failed for {}: {}", reviewer.display_name, result.unwrap_err());
+        return;
     }
+
+    if scrape {
+        // Scrape mode: wait for response, scrape it, write and push locally
+        scrape_and_push(tab_match, reviewer).await;
+    }
+    // Self-push mode: reviewer handles their own commit — we just wait for the filmstrip callback
 
     if let Err(msg) = result {
         println!("[plaza-ant] CDP dispatch failed for {}: {}", reviewer.display_name, msg);
@@ -377,7 +404,6 @@ async fn dispatch_cdp(tab_match: &str, needs_confirm: bool, reviewer: &ReviewerC
 async fn cdp_send_and_click(
     browser: &mut Browser,
     tab_match: &str,
-    needs_confirm: bool,
     prompt: &str,
     reviewer: &ReviewerConfig,
     event: &PlazaEvent,
@@ -408,53 +434,194 @@ async fn cdp_send_and_click(
 
     println!("[plaza-ant] Found tab for {}", reviewer.display_name);
 
-    // Set prompt text via JS (instant — type_str is too slow for long prompts)
-    let escaped_prompt = prompt.replace('\\', "\\\\").replace('\'', "\\'").replace('\n', "\\n");
-    let set_text_js = format!(
-        r#"(function(){{
-            var el = document.querySelector('#prompt-textarea')
-                || document.querySelector('[contenteditable="true"]')
-                || document.querySelector('.ql-editor');
-            if (!el) return 'no input';
-            el.focus();
-            el.innerText = '{}';
-            el.dispatchEvent(new Event('input', {{bubbles: true}}));
-            return 'set';
-        }})()"#,
-        escaped_prompt
-    );
-
-    let result = page.evaluate_expression(&set_text_js).await
-        .map_err(|e| format!("set text: {}", e))?;
-    let val = result.into_value::<String>().unwrap_or_default();
-    if val != "set" {
-        return Err(format!("could not set text: {}", val));
-    }
-
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-    // Press Enter via JS key event
-    let enter_js = r#"(function(){
+    // Focus the input via JS
+    let focus_js = r#"(function(){
         var el = document.querySelector('#prompt-textarea')
             || document.querySelector('[contenteditable="true"]')
             || document.querySelector('.ql-editor');
         if (!el) return 'no input';
-        el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}));
-        el.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}));
-        return 'enter';
+        el.focus();
+        el.textContent = '';
+        return 'focused';
     })()"#;
-    page.evaluate_expression(enter_js).await.map_err(|e| format!("press Enter: {}", e))?;
-
-    println!("[plaza-ant] Prompt sent to {}", reviewer.display_name);
-
-    if !needs_confirm {
-        println!("[plaza-ant] No confirm button needed for {} — dispatch complete", reviewer.display_name);
-        return Ok(());
+    let result = page.evaluate_expression(focus_js).await
+        .map_err(|e| format!("focus: {}", e))?;
+    let val = result.into_value::<String>().unwrap_or_default();
+    if val != "focused" {
+        return Err(format!("could not focus input: {}", val));
     }
 
-    // Confirm button polling happens AFTER this function returns
-    // and the original connection is dropped — two CDP connections cause hangs
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    // Insert text via CDP Input.insertText (React-compatible, instant)
+    use chromiumoxide::cdp::browser_protocol::input::InsertTextParams;
+    page.execute(InsertTextParams::new(prompt)).await
+        .map_err(|e| format!("insertText: {}", e))?;
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // Press Enter via CDP DispatchKeyEvent
+    use chromiumoxide::cdp::browser_protocol::input::{
+        DispatchKeyEventParams, DispatchKeyEventType,
+    };
+    let enter_down = DispatchKeyEventParams::builder()
+        .r#type(DispatchKeyEventType::KeyDown)
+        .key("Enter")
+        .code("Enter")
+        .windows_virtual_key_code(13)
+        .native_virtual_key_code(13)
+        .build()
+        .unwrap();
+    page.execute(enter_down).await.map_err(|e| format!("Enter keydown: {}", e))?;
+
+    let enter_up = DispatchKeyEventParams::builder()
+        .r#type(DispatchKeyEventType::KeyUp)
+        .key("Enter")
+        .code("Enter")
+        .windows_virtual_key_code(13)
+        .native_virtual_key_code(13)
+        .build()
+        .unwrap();
+    page.execute(enter_up).await.map_err(|e| format!("Enter keyup: {}", e))?;
+
+    println!("[plaza-ant] Prompt sent to {}", reviewer.display_name);
     Ok(())
+}
+
+/// Scrape the last assistant response from the browser, write to blessings file, git push
+async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerConfig) {
+    println!("[plaza-ant] Scraping response for {}...", reviewer.display_name);
+
+    // Poll until streaming is done, then scrape — fresh connection each attempt
+    let max_attempts = 36; // 36 * 5s = 3 minutes
+    let mut response_text = String::new();
+
+    for attempt in 0..max_attempts {
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+        let (mut browser, handler) = match Browser::connect(CDP_URL).await {
+            Ok(conn) => conn,
+            Err(e) => {
+                println!("[plaza-ant]   scrape connect error: {} ({}s)", e, (attempt + 1) * 5);
+                continue;
+            }
+        };
+
+        let handler_task = tokio::spawn(async move {
+            let mut handler = handler;
+            while let Some(event) = handler.next().await { let _ = event; }
+        });
+
+        let _ = browser.fetch_targets().await;
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+        let pages = browser.pages().await.unwrap_or_default();
+        let tab_lower = tab_match.to_lowercase();
+        let mut found_page = None;
+        for p in pages {
+            let url = p.url().await.ok().flatten().unwrap_or_default().to_lowercase();
+            if url.contains(&tab_lower) && !url.contains("codex/cloud") {
+                found_page = Some(p);
+                break;
+            }
+        }
+
+        if let Some(page) = found_page {
+            // Check if still streaming
+            let check_js = r#"
+                (function(){
+                    var stop = document.querySelector('button[aria-label="Stop generating"]')
+                        || document.querySelector('button[aria-label="Stop Response"]');
+                    if (stop) return 'streaming';
+                    var streaming = document.querySelector('.result-streaming');
+                    if (streaming) return 'streaming';
+                    return 'done';
+                })()
+            "#;
+
+            if let Ok(val) = page.evaluate_expression(check_js).await {
+                let status = val.into_value::<String>().unwrap_or_default();
+                if status == "done" {
+                    // Scrape the last assistant message
+                    let scrape_js = r#"
+                        (function(){
+                            var msgs = document.querySelectorAll('[data-message-author-role="assistant"]');
+                            if (msgs.length === 0) return '';
+                            var last = msgs[msgs.length-1];
+                            var md = last.querySelector('.markdown');
+                            return (md || last).textContent.trim();
+                        })()
+                    "#;
+
+                    if let Ok(val) = page.evaluate_expression(scrape_js).await {
+                        response_text = val.into_value::<String>().unwrap_or_default();
+                    }
+
+                    drop(browser);
+                    handler_task.abort();
+                    break;
+                }
+            }
+            println!("[plaza-ant]   still streaming... ({}s)", (attempt + 1) * 5);
+        }
+
+        drop(browser);
+        handler_task.abort();
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+
+    if response_text.is_empty() {
+        println!("[plaza-ant] ERROR: could not scrape response for {}", reviewer.display_name);
+        return;
+    }
+
+    println!("[plaza-ant] Scraped {} chars from {}", response_text.len(), reviewer.display_name);
+
+    // Write to blessings file and push
+    let dodo_path = format!(
+        "{}/dodo-bird-c3-tion-777333/{}",
+        env::var("HOME").unwrap_or_default(),
+        reviewer.entry_file
+    );
+
+    if let Err(e) = tokio::fs::write(&dodo_path, &response_text).await {
+        println!("[plaza-ant] ERROR: could not write {}: {}", dodo_path, e);
+        return;
+    }
+
+    // git add, commit, push
+    let dodo_dir = format!("{}/dodo-bird-c3-tion-777333", env::var("HOME").unwrap_or_default());
+    let commit_msg = format!("{} review via plaza-ant scrape", reviewer.display_name);
+
+    // Retry push up to 3 times — this is the critical function
+    let git_result = Command::new("bash")
+        .arg("-c")
+        .arg(format!(
+            "cd {dir} && \
+             for i in 1 2 3; do \
+               git pull --no-rebase && \
+               git add {file} && \
+               git commit -m '{msg}' 2>/dev/null; \
+               if git push 2>&1; then exit 0; fi; \
+               echo 'Push retry '$i; sleep 2; \
+             done; exit 1",
+            dir = dodo_dir, file = reviewer.entry_file, msg = commit_msg
+        ))
+        .output()
+        .await;
+
+    match git_result {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if out.status.success() {
+                println!("[plaza-ant] Pushed {} review for {}", reviewer.entry_file, reviewer.display_name);
+            } else {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                println!("[plaza-ant] Git push failed for {}: {} {}", reviewer.display_name, stdout, stderr);
+            }
+        }
+        Err(e) => println!("[plaza-ant] Git command failed: {}", e),
+    }
 }
 
 /// Poll for Update File button with fresh connections — called AFTER original connection is dropped
