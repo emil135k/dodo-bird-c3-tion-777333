@@ -38,6 +38,9 @@ struct PlazaEvent {
     topic: String,
     #[allow(dead_code)]
     channel: String,
+    /// Base64-encoded full content from the blessings entry file
+    #[serde(default)]
+    content_b64: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -96,6 +99,40 @@ const REVIEWERS: &[ReviewerConfig] = &[
         dispatch: DispatchMethod::Cdp { tab_match: "claude.ai", scrape: false },
     },
 ];
+
+/// Decode base64 string
+fn base64_decode(input: &str) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut output = Vec::new();
+    // Simple base64 decode without external crate
+    let chars: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    let lookup = |c: u8| -> Option<u8> {
+        match c {
+            b'A'..=b'Z' => Some(c - b'A'),
+            b'a'..=b'z' => Some(c - b'a' + 26),
+            b'0'..=b'9' => Some(c - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            b'=' => Some(0),
+            _ => None,
+        }
+    };
+    for chunk in chars.chunks(4) {
+        if chunk.len() < 2 { break; }
+        let a = lookup(chunk[0])?;
+        let b = lookup(chunk[1])?;
+        output.push((a << 2) | (b >> 4));
+        if chunk.len() > 2 && chunk[2] != b'=' {
+            let c = lookup(chunk[2])?;
+            output.push((b << 4) | (c >> 2));
+            if chunk.len() > 3 && chunk[3] != b'=' {
+                let d = lookup(chunk[3])?;
+                output.push((c << 6) | d);
+            }
+        }
+    }
+    Some(output)
+}
 
 /// Sanitize a string for safe use inside shell single-quotes
 fn shell_safe(s: &str) -> String {
@@ -173,18 +210,24 @@ async fn handle_plaza(
         }
         drop(plaza);
 
-        // Dispatch the first one in the queue
-        dispatch_next(state.clone()).await;
+        // Spawn dispatch as background task — don't block the HTTP response
+        let s = state.clone();
+        tokio::spawn(async move { dispatch_next(s).await; });
     } else {
-        // A reviewer posted — notify Cody
-        notify_cody(&format!(
-            "{} posted FRAME #{} — {}. Check the tape.",
-            event.speaker, event.frame, event.topic
-        ))
-        .await;
-
-        // Dispatch next reviewer in queue
-        dispatch_next(state.clone()).await;
+        // A reviewer posted — notify Cody + dispatch next
+        // Spawn as background task so the HTTP response returns immediately
+        let speaker = event.speaker.clone();
+        let frame = event.frame;
+        let topic = event.topic.clone();
+        let s = state.clone();
+        tokio::spawn(async move {
+            notify_cody(&format!(
+                "{} posted FRAME #{} — {}. Check the tape.",
+                speaker, frame, topic
+            ))
+            .await;
+            dispatch_next(s).await;
+        });
     }
 
     (StatusCode::OK, "ok")
@@ -267,19 +310,50 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent) {
         reviewer.display_name, event.frame
     );
 
+    // Decode full content from base64, fall back to topic
+    let full_content = if !event.content_b64.is_empty() {
+        use std::io::Read;
+        let decoded = base64_decode(&event.content_b64).unwrap_or_default();
+        String::from_utf8(decoded).unwrap_or_else(|_| event.topic.clone())
+    } else {
+        event.topic.clone()
+    };
+
+    // ONE message for ALL reviewers — cookie cutter broadcast
+    let message = format!(
+        "You are {name}. {content} Write a brief review as your reply. Keep it concise and actionable.",
+        name = reviewer.display_name,
+        content = full_content,
+    );
+
     match &reviewer.dispatch {
         DispatchMethod::Tmux { session } => {
-            dispatch_tmux(session, reviewer, event).await;
+            // CLI reviewers must commit and push themselves
+            let cli_message = format!(
+                "{} After writing your review to {}, run: git add {} && git commit -m 'FRAME #{} review' && git push",
+                message, reviewer.entry_file, reviewer.entry_file, event.frame
+            );
+            dispatch_tmux(session, reviewer, &cli_message).await;
         }
         DispatchMethod::Cdp { tab_match, scrape } => {
-            dispatch_cdp(tab_match, *scrape, reviewer, event).await;
+            if *scrape {
+                // Scrape reviewers: same message, plaza-ant handles the push
+                dispatch_cdp(tab_match, true, reviewer, event, &message).await;
+            } else {
+                // Self-push reviewers (Ara): must commit and push
+                let push_message = format!(
+                    "{} Save your review to {} in repo emil135k/dodo-bird-c3-tion-777333 on main branch. Commit and push the file.",
+                    message, reviewer.entry_file
+                );
+                dispatch_cdp(tab_match, false, reviewer, event, &push_message).await;
+            }
         }
     }
 }
 
 // ── tmux dispatch (CLI reviewers) ──────────────────────────────────────
 
-async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, event: &PlazaEvent) {
+async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, message: &str) {
     let check = Command::new("tmux")
         .args(["has-session", "-t", session])
         .output()
@@ -289,33 +363,16 @@ async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, event: &PlazaEv
         Ok(output) if output.status.success() => {}
         _ => {
             println!(
-                "[plaza-ant] WARNING: tmux session '{}' not found — {} will miss FRAME #{}",
-                session, reviewer.display_name, event.frame
+                "[plaza-ant] WARNING: tmux session '{}' not found — {}",
+                session, reviewer.display_name
             );
             return;
         }
     }
 
-    let safe_topic = shell_safe(&event.topic);
-    let prompt = format!(
-        "You are {name}, a peer reviewer in the Village Square. \
-         Cody just posted FRAME #{frame} — topic: '{topic}'. \
-         Instructions: \
-         1. Run: git pull \
-         2. Read the latest frame in ants/cody_code_updates_comments.md. \
-         3. Review the code or comments Cody posted. \
-         4. Write your review to {entry}. \
-         5. Run: git add {entry} && git commit -m 'FRAME #{frame} review' && git push. \
-         Stay focused on this frame only. Do not modify any other files.",
-        name = reviewer.display_name,
-        frame = event.frame,
-        topic = safe_topic,
-        entry = reviewer.entry_file,
-    );
-
     // Text and Enter must be separate calls — CLI TUIs need the text to land first
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", session, &prompt])
+        .args(["send-keys", "-t", session, message])
         .output()
         .await;
 
@@ -331,35 +388,8 @@ async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, event: &PlazaEv
 
 // ── CDP dispatch (web reviewers via chromiumoxide) ─────────────────────
 
-async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, event: &PlazaEvent) {
-    let prompt = if scrape {
-        // Scrape mode: reviewer just writes the review, we handle the push
-        format!(
-            "You are {name}, a peer reviewer in the Village Square. \
-             Cody just posted FRAME #{frame} — topic: {topic}. \
-             Read FRAME #{frame} in the flight recorder at \
-             https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/cody_code_updates_comments.md \
-             and review it. Write a brief review as your reply. \
-             Do NOT save to GitHub. Do NOT commit. Just write the review text. Keep it concise.",
-            name = reviewer.display_name,
-            frame = event.frame,
-            topic = event.topic,
-        )
-    } else {
-        // Self-push mode: reviewer saves and commits via their own connector
-        format!(
-            "You are {name}, a peer reviewer in the Village Square. \
-             Cody just posted FRAME #{frame} — topic: {topic}. \
-             Read FRAME #{frame} in the flight recorder at \
-             https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/cody_code_updates_comments.md \
-             and review it. Write a brief review and save it to {entry} \
-             in repo emil135k/dodo-bird-c3-tion-777333 on main branch. Commit and push the file. Keep it concise.",
-            name = reviewer.display_name,
-            frame = event.frame,
-            topic = event.topic,
-            entry = reviewer.entry_file,
-        )
-    };
+async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, event: &PlazaEvent, message: &str) {
+    let prompt = message.to_string();
 
     // Connect to existing Chrome
     let (mut browser, handler) = match Browser::connect(CDP_URL).await {
@@ -380,6 +410,14 @@ async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, 
             let _ = event;
         }
     });
+
+    // Clear browser cache before interacting — prevents stale CDP state
+    {
+        use chromiumoxide::cdp::browser_protocol::network::{ClearBrowserCacheParams, ClearBrowserCookiesParams};
+        let _ = browser.execute(ClearBrowserCacheParams::default()).await;
+        let _ = browser.execute(ClearBrowserCookiesParams::default()).await;
+        println!("[plaza-ant] Browser cache cleared for {}", reviewer.display_name);
+    }
 
     // Send the prompt
     let result = cdp_send_and_click(&mut browser, tab_match, &prompt, reviewer, event).await;
