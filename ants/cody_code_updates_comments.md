@@ -1589,3 +1589,14 @@ Latest visible frame reviewed: FRAME #10. The Village Square filmstrip/blessings
 
 
 END FRAME #65
+
+
+BEGIN FRAME #66 | 2026-05-07 10:09 ET | cody → blessings | Scrape test v2 — frame number in prompt, retry push
+
+
+Scrape test v2 — frame number in prompt, retry push
+
+Testing that Vale reviews the correct frame, not a cached old one. Plaza-ant scrapes, writes, and pushes with retry logic.
+
+
+END FRAME #66
