@@ -498,13 +498,8 @@ async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, 
         println!("[plaza-ant] Browser cache cleared for {}", reviewer.display_name);
     }
 
-    // Send the prompt
-    let result = cdp_send_and_click(&mut browser, tab_match, &prompt, reviewer, event).await;
-
-    // Drop original connection FIRST — two CDP connections cause response confusion
-    drop(browser);
-    handler_task.abort();
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    // Send the prompt (drops chromiumoxide connection internally, uses raw websocket for input)
+    let result = cdp_send_and_click(&mut browser, tab_match, &prompt, reviewer, event, handler_task).await;
 
     if let Err(msg) = result {
         println!("[plaza-ant] CDP dispatch failed for {}: {}", reviewer.display_name, msg);
@@ -523,6 +518,7 @@ async fn cdp_send_and_click(
     prompt: &str,
     reviewer: &ReviewerConfig,
     event: &PlazaEvent,
+    handler_task: tokio::task::JoinHandle<()>,
 ) -> Result<(), String> {
     println!("[plaza-ant] Connected to Chrome for {}", reviewer.display_name);
 
@@ -553,52 +549,53 @@ async fn cdp_send_and_click(
     // Focus the input via JS
     let focus_js = r#"(function(){
         var el = document.querySelector('#prompt-textarea')
-            || document.querySelector('[contenteditable="true"]')
-            || document.querySelector('.ql-editor');
+            || document.querySelector('.ql-editor.ql-blank')
+            || document.querySelector('.ql-editor')
+            || document.querySelector('.tiptap.ProseMirror')
+            || document.querySelector('[contenteditable="true"]');
         if (!el) return 'no input';
         el.focus();
         el.textContent = '';
-        return 'focused';
+        return 'focused: ' + el.className.substring(0,30);
     })()"#;
     let result = page.evaluate_expression(focus_js).await
         .map_err(|e| format!("focus: {}", e))?;
     let val = result.into_value::<String>().unwrap_or_default();
-    if val != "focused" {
+    if !val.starts_with("focused") {
         return Err(format!("could not focus input: {}", val));
     }
+    println!("[plaza-ant] {}", val);
+    // duplicate removed — handled above
 
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    // Insert text via CDP Input.insertText (React-compatible, instant)
-    use chromiumoxide::cdp::browser_protocol::input::InsertTextParams;
-    page.execute(InsertTextParams::new(prompt)).await
+    // Drop chromiumoxide connection before raw websocket injection
+    // chromiumoxide's handler loop interferes with Input.insertText on some platforms (Gemini)
+    drop(page);
+    drop(browser);
+    handler_task.abort();
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // Find the tab's websocket URL for raw CDP
+    let ws_url = find_tab_ws(tab_match).await
+        .ok_or_else(|| format!("lost tab for {}", reviewer.display_name))?;
+
+    // Insert text via raw websocket (works reliably on all platforms)
+    raw_cdp_send(&ws_url, "Input.insertText", serde_json::json!({"text": prompt})).await
         .map_err(|e| format!("insertText: {}", e))?;
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    // Press Enter via CDP DispatchKeyEvent
-    use chromiumoxide::cdp::browser_protocol::input::{
-        DispatchKeyEventParams, DispatchKeyEventType,
-    };
-    let enter_down = DispatchKeyEventParams::builder()
-        .r#type(DispatchKeyEventType::KeyDown)
-        .key("Enter")
-        .code("Enter")
-        .windows_virtual_key_code(13)
-        .native_virtual_key_code(13)
-        .build()
-        .unwrap();
-    page.execute(enter_down).await.map_err(|e| format!("Enter keydown: {}", e))?;
+    // Press Enter via raw websocket
+    raw_cdp_send(&ws_url, "Input.dispatchKeyEvent", serde_json::json!({
+        "type": "keyDown", "key": "Enter", "code": "Enter",
+        "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13
+    })).await.map_err(|e| format!("Enter keydown: {}", e))?;
 
-    let enter_up = DispatchKeyEventParams::builder()
-        .r#type(DispatchKeyEventType::KeyUp)
-        .key("Enter")
-        .code("Enter")
-        .windows_virtual_key_code(13)
-        .native_virtual_key_code(13)
-        .build()
-        .unwrap();
-    page.execute(enter_up).await.map_err(|e| format!("Enter keyup: {}", e))?;
+    raw_cdp_send(&ws_url, "Input.dispatchKeyEvent", serde_json::json!({
+        "type": "keyUp", "key": "Enter", "code": "Enter",
+        "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13
+    })).await.map_err(|e| format!("Enter keyup: {}", e))?;
 
     println!("[plaza-ant] Prompt sent to {}", reviewer.display_name);
     Ok(())
@@ -756,6 +753,36 @@ async fn find_tab_ws(tab_match: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Raw CDP send — connect, send a CDP command, read response, disconnect
+async fn raw_cdp_send(ws_url: &str, method: &str, params: serde_json::Value) -> Result<String, String> {
+    use tokio_tungstenite::connect_async;
+
+    let (mut ws, _) = connect_async(ws_url).await.map_err(|e| format!("ws connect: {}", e))?;
+
+    let msg = serde_json::json!({ "id": 1, "method": method, "params": params });
+
+    use futures::SinkExt;
+    ws.send(tokio_tungstenite::tungstenite::Message::Text(msg.to_string()))
+        .await
+        .map_err(|e| format!("ws send: {}", e))?;
+
+    for _ in 0..20 {
+        if let Some(Ok(frame)) = ws.next().await {
+            if let tokio_tungstenite::tungstenite::Message::Text(text) = frame {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if parsed.get("id").and_then(|v| v.as_u64()) == Some(1) {
+                        let _ = ws.close(None).await;
+                        return Ok(text);
+                    }
+                }
+            }
+        }
+    }
+
+    let _ = ws.close(None).await;
+    Err("no response".to_string())
 }
 
 /// Raw CDP evaluate — connect via tokio-tungstenite, send one Runtime.evaluate, read response, disconnect
