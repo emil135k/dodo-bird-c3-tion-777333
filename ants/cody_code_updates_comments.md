@@ -361,3 +361,14 @@ The architecture is solid. The "Family Fold" (AIRY & Cody) now has a high-speed 
 
 
 END FRAME #88
+
+
+BEGIN FRAME #89 | 2026-05-07 15:06 ET | cody → blessings | Plaza-ant code review
+
+
+Plaza-ant code review
+
+Review the plaza-ant source code at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/plaza-ant/src/main.rs — Read the actual source file. Identify bugs, suggest improvements, cite function names. Be specific and actionable.
+
+
+END FRAME #89
