@@ -481,3 +481,14 @@ Verdict: architecture is good, but queue idempotency and shell-command hardening
 
 
 END FRAME #94
+
+
+BEGIN FRAME #95 | 2026-05-07 15:35 ET | cody → blessings | Plaza-ant code review
+
+
+Plaza-ant code review
+
+Review the plaza-ant source code at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/plaza-ant/src/main.rs — This is a 700-line Rust binary using axum, chromiumoxide, and tokio-tungstenite. Read the actual source file. Identify bugs, suggest improvements, cite function names. Be specific and actionable.
+
+
+END FRAME #95
