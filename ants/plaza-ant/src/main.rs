@@ -26,7 +26,10 @@ const CDP_URL: &str = "http://localhost:9222";
 /// Shared state: reviewer online/offline status + dispatch queue
 struct PlazaState {
     status: HashMap<String, bool>,
-    queue: VecDeque<(usize, PlazaEvent)>, // (reviewer index, original event)
+    queue: VecDeque<(usize, PlazaEvent)>,
+    active_reviewer: Option<String>,
+    subject_frame: Option<u64>,
+    plaza_secret: String,
 }
 
 type SharedState = Arc<RwLock<PlazaState>>;
@@ -102,7 +105,7 @@ const REVIEWERS: &[ReviewerConfig] = &[
 
 /// Decode base64 string
 fn base64_decode(input: &str) -> Option<Vec<u8>> {
-    use std::io::Read;
+
     let mut output = Vec::new();
     // Simple base64 decode without external crate
     let chars: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
@@ -134,11 +137,16 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
     Some(output)
 }
 
-/// Sanitize a string for safe use inside shell single-quotes
+/// Sanitize a string for safe use in tmux send-keys
 fn shell_safe(s: &str) -> String {
     s.replace('\'', "'\\''")
         .replace('`', "")
         .replace('$', "")
+        .replace(';', "")
+        .replace('|', "")
+        .replace('&', "")
+        .replace('\n', " ")
+        .replace('\r', " ")
 }
 
 #[tokio::main]
@@ -148,9 +156,18 @@ async fn main() {
     for r in REVIEWERS {
         status.insert(r.display_name.to_string(), true);
     }
+    let plaza_secret = env::var("PLAZA_SECRET").unwrap_or_default();
+    if plaza_secret.is_empty() {
+        println!("[plaza-ant] FATAL: PLAZA_SECRET not set");
+        std::process::exit(1);
+    }
+
     let state: SharedState = Arc::new(RwLock::new(PlazaState {
         status,
         queue: VecDeque::new(),
+        active_reviewer: None,
+        subject_frame: None,
+        plaza_secret,
     }));
 
     let app = Router::new()
@@ -179,7 +196,7 @@ async fn handle_plaza(
     headers: HeaderMap,
     Json(event): Json<PlazaEvent>,
 ) -> (StatusCode, &'static str) {
-    let expected = env::var("PLAZA_SECRET").unwrap_or_default();
+    let expected = { state.read().await.plaza_secret.clone() };
     let provided = headers
         .get("x-plaza-token")
         .and_then(|v| v.to_str().ok())
@@ -199,6 +216,8 @@ async fn handle_plaza(
         // Build the queue of online reviewers
         let mut plaza = state.write().await;
         plaza.queue.clear();
+        plaza.subject_frame = Some(event.frame);
+        plaza.active_reviewer = None;
         for (i, reviewer) in REVIEWERS.iter().enumerate() {
             let is_online = plaza.status.get(reviewer.display_name).copied().unwrap_or(true);
             if is_online {
@@ -214,42 +233,66 @@ async fn handle_plaza(
         let s = state.clone();
         tokio::spawn(async move { dispatch_next(s).await; });
     } else {
-        // A reviewer posted — notify Cody + dispatch next
-        // Spawn as background task so the HTTP response returns immediately
-        let speaker = event.speaker.clone();
-        let frame = event.frame;
-        let topic = event.topic.clone();
-        let s = state.clone();
-        tokio::spawn(async move {
-            notify_cody(&format!(
-                "{} posted FRAME #{} — {}. Check the tape.",
-                speaker, frame, topic
-            ))
-            .await;
-            dispatch_next(s).await;
-        });
+        // A reviewer posted — validate it's the active reviewer before advancing
+        let should_advance = {
+            let plaza = state.read().await;
+            match &plaza.active_reviewer {
+                Some(active) => {
+                    if event.speaker == *active {
+                        true
+                    } else {
+                        println!(
+                            "[plaza-ant] IGNORE: {} posted but active reviewer is {}",
+                            event.speaker,
+                            active
+                        );
+                        false
+                    }
+                }
+                None => {
+                    // No active reviewer — accept any callback (scrape push or late arrival)
+                    true
+                }
+            }
+        };
+
+        if should_advance {
+            let speaker = event.speaker.clone();
+            let frame = event.frame;
+            let topic = event.topic.clone();
+            let s = state.clone();
+            tokio::spawn(async move {
+                notify_cody(&format!(
+                    "{} posted FRAME #{} — {}. Check the tape.",
+                    speaker, frame, topic
+                ))
+                .await;
+                dispatch_next(s).await;
+            });
+        }
     }
 
     (StatusCode::OK, "ok")
 }
 
-/// Pop the next reviewer from the queue and dispatch
+/// Pop the next reviewer from the queue and dispatch — sets active_reviewer
 async fn dispatch_next(state: SharedState) {
     let next = {
         let mut plaza = state.write().await;
+        plaza.active_reviewer = None;
         plaza.queue.pop_front()
     };
 
     if let Some((idx, event)) = next {
         let reviewer = &REVIEWERS[idx];
-        println!(
-            "[plaza-ant] Dispatching next in queue: {} ({} remaining)",
-            reviewer.display_name,
-            {
-                let plaza = state.read().await;
-                plaza.queue.len()
-            }
-        );
+        {
+            let mut plaza = state.write().await;
+            plaza.active_reviewer = Some(reviewer.display_name.to_string());
+            println!(
+                "[plaza-ant] Dispatching next in queue: {} ({} remaining)",
+                reviewer.display_name, plaza.queue.len()
+            );
+        }
         dispatch_reviewer(reviewer, &event).await;
     } else {
         println!("[plaza-ant] Queue empty — all reviewers dispatched");
@@ -263,7 +306,7 @@ async fn handle_admin(
     headers: HeaderMap,
     Json(req): Json<AdminRequest>,
 ) -> (StatusCode, String) {
-    let expected = env::var("PLAZA_SECRET").unwrap_or_default();
+    let expected = { state.read().await.plaza_secret.clone() };
     let provided = headers
         .get("x-plaza-token")
         .and_then(|v| v.to_str().ok())
@@ -312,7 +355,7 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent) {
 
     // Decode full content from base64, fall back to topic
     let full_content = if !event.content_b64.is_empty() {
-        use std::io::Read;
+    
         let decoded = base64_decode(&event.content_b64).unwrap_or_default();
         String::from_utf8(decoded).unwrap_or_else(|_| event.topic.clone())
     } else {
@@ -581,8 +624,17 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerConfig) {
         }
     }
 
+    // Validate scraped response
     if response_text.is_empty() {
-        println!("[plaza-ant] ERROR: could not scrape response for {}", reviewer.display_name);
+        println!("[plaza-ant] ERROR: empty scrape for {}", reviewer.display_name);
+        return;
+    }
+    if response_text.len() < 20 {
+        println!("[plaza-ant] ERROR: scrape too short ({} chars) for {}", response_text.len(), reviewer.display_name);
+        return;
+    }
+    if response_text.len() > 50_000 {
+        println!("[plaza-ant] ERROR: scrape too large ({} chars) for {}", response_text.len(), reviewer.display_name);
         return;
     }
 
@@ -600,39 +652,65 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerConfig) {
         return;
     }
 
-    // git add, commit, push
+    // git pull, add, commit, push — structured commands, no shell interpolation
     let dodo_dir = format!("{}/dodo-bird-c3-tion-777333", env::var("HOME").unwrap_or_default());
     let commit_msg = format!("{} review via plaza-ant scrape", reviewer.display_name);
 
-    // Retry push up to 3 times — this is the critical function
-    let git_result = Command::new("bash")
-        .arg("-c")
-        .arg(format!(
-            "cd {dir} && \
-             for i in 1 2 3; do \
-               git pull --no-rebase && \
-               git add {file} && \
-               git commit -m '{msg}' 2>/dev/null; \
-               if git push 2>&1; then exit 0; fi; \
-               echo 'Push retry '$i; sleep 2; \
-             done; exit 1",
-            dir = dodo_dir, file = reviewer.entry_file, msg = commit_msg
-        ))
-        .output()
-        .await;
+    // Retry push up to 3 times
+    for attempt in 1..=3 {
+        // git pull
+        let pull = Command::new("git")
+            .args(["pull", "--no-rebase"])
+            .current_dir(&dodo_dir)
+            .output()
+            .await;
+        if let Err(e) = pull {
+            println!("[plaza-ant] git pull failed: {}", e);
+            continue;
+        }
 
-    match git_result {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            if out.status.success() {
+        // git add
+        let add = Command::new("git")
+            .args(["add", reviewer.entry_file])
+            .current_dir(&dodo_dir)
+            .output()
+            .await;
+        if let Err(e) = add {
+            println!("[plaza-ant] git add failed: {}", e);
+            continue;
+        }
+
+        // git commit
+        let _ = Command::new("git")
+            .args(["commit", "-m", &commit_msg])
+            .current_dir(&dodo_dir)
+            .output()
+            .await;
+
+        // git push
+        let push = Command::new("git")
+            .args(["push"])
+            .current_dir(&dodo_dir)
+            .output()
+            .await;
+
+        match push {
+            Ok(out) if out.status.success() => {
                 println!("[plaza-ant] Pushed {} review for {}", reviewer.entry_file, reviewer.display_name);
-            } else {
+                return;
+            }
+            Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
-                println!("[plaza-ant] Git push failed for {}: {} {}", reviewer.display_name, stdout, stderr);
+                println!("[plaza-ant] Push retry {} for {}: {}", attempt, reviewer.display_name, stderr.chars().take(100).collect::<String>());
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            Err(e) => {
+                println!("[plaza-ant] git push error: {}", e);
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             }
         }
-        Err(e) => println!("[plaza-ant] Git command failed: {}", e),
     }
+    println!("[plaza-ant] ERROR: git push failed after 3 retries for {}", reviewer.display_name);
 }
 
 /// Find a tab's websocket debugger URL by matching title/URL
@@ -693,88 +771,6 @@ async fn raw_cdp_evaluate(ws_url: &str, expression: &str) -> Result<String, Stri
     Err("no response after 20 messages".to_string())
 }
 
-/// Poll for Update File button with fresh connections — called AFTER original connection is dropped
-async fn poll_update_file_button(tab_match: &str, reviewer: &ReviewerConfig) {
-    println!("[plaza-ant] Polling for Update File button (fresh connections)...");
-    let max_attempts = 24; // 24 * 5s = 2 minutes
-    for attempt in 0..max_attempts {
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        match poll_and_click_button(tab_match, reviewer).await {
-            Ok(true) => {
-                println!(
-                    "[plaza-ant] Update File clicked for {} ({}s)",
-                    reviewer.display_name,
-                    (attempt + 1) * 5
-                );
-                return;
-            }
-            Ok(false) => println!("[plaza-ant]   polling... ({}s)", (attempt + 1) * 5),
-            Err(e) => println!("[plaza-ant]   poll error: {} ({}s)", e, (attempt + 1) * 5),
-        }
-    }
-    println!("[plaza-ant] TIMEOUT: Update File never appeared for {}", reviewer.display_name);
-}
-
-/// Fresh connection per poll — find Update File button and click via JS MouseEvent
-async fn poll_and_click_button(tab_match: &str, reviewer: &ReviewerConfig) -> Result<bool, String> {
-    let (mut browser, handler) = Browser::connect(CDP_URL).await
-        .map_err(|e| format!("connect: {}", e))?;
-
-    let handler_task = tokio::spawn(async move {
-        let mut handler = handler;
-        while let Some(event) = handler.next().await {
-            let _ = event;
-        }
-    });
-
-    browser.fetch_targets().await.map_err(|e| format!("fetch: {}", e))?;
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-    let pages = browser.pages().await.map_err(|e| format!("pages: {}", e))?;
-    let tab_lower = tab_match.to_lowercase();
-    let mut found_page = None;
-    for p in pages {
-        let url = p.url().await.ok().flatten().unwrap_or_default().to_lowercase();
-        if url.contains(&tab_lower) && !url.contains("codex/cloud") {
-            found_page = Some(p);
-            break;
-        }
-    }
-
-    let page = found_page.ok_or_else(|| format!("no tab for {}", reviewer.display_name))?;
-
-    let js = r#"
-        (function() {
-            var buttons = document.querySelectorAll('button');
-            for (var b of buttons) {
-                if (b.textContent.trim() === 'Update File') {
-                    var rect = b.getBoundingClientRect();
-                    var x = rect.x + rect.width/2;
-                    var y = rect.y + rect.height/2;
-                    var opts = {bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0};
-                    b.dispatchEvent(new MouseEvent('mousedown', opts));
-                    b.dispatchEvent(new MouseEvent('mouseup', opts));
-                    b.dispatchEvent(new MouseEvent('click', opts));
-                    return 'CLICKED';
-                }
-            }
-            return 'waiting';
-        })()
-    "#;
-
-    let clicked = if let Ok(val) = page.evaluate_expression(js).await {
-        val.into_value::<String>().unwrap_or_default() == "CLICKED"
-    } else {
-        false
-    };
-
-    drop(browser);
-    handler_task.abort();
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-    Ok(clicked)
-}
-
 // ── Cody notification ──────────────────────────────────────────────────
 
 async fn notify_cody(message: &str) {
@@ -796,11 +792,11 @@ async fn notify_cody(message: &str) {
 // ── Airy relay ─────────────────────────────────────────────────────────
 
 async fn handle_airy(
-    State(_state): State<SharedState>,
+    State(state): State<SharedState>,
     headers: HeaderMap,
     Json(msg): Json<AiryMessage>,
 ) -> (StatusCode, &'static str) {
-    let expected = env::var("PLAZA_SECRET").unwrap_or_default();
+    let expected = { state.read().await.plaza_secret.clone() };
     let provided = headers
         .get("x-plaza-token")
         .and_then(|v| v.to_str().ok())
@@ -815,10 +811,11 @@ async fn handle_airy(
         return (StatusCode::OK, "empty");
     }
 
-    println!("[Airy→Cody] {}", &msg.command[..msg.command.len().min(80)]);
+    let safe_cmd = shell_safe(&msg.command);
+    println!("[Airy→Cody] {}", safe_cmd.chars().take(80).collect::<String>());
 
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", "cody", &msg.command])
+        .args(["send-keys", "-t", "cody", &safe_cmd])
         .output()
         .await;
 
