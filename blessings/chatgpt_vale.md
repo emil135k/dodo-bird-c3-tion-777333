@@ -1,0 +1,4 @@
+Plaza-ant v1.0 receives blessing with one caveat.
+Verified fixes: queue guard now prevents a new Cody frame from overwriting an active cycle; dispatch_cdp() error flow is cleaner; cookie clearing was removed; dispatch_tmux() and notify_cody() now sanitize tmux-bound messages; git push path remains structured via Command.
+Remaining issue: the comment says callback validation checks speaker and frame, but the visible handle_plaza() code only validates event.speaker == active_reviewer; subject_frame is not actually compared to event.frame. This is practical to fix: add event.frame == plaza.subject_frame.unwrap_or(event.frame) or equivalent explicit stale-frame rejection.
+Blessing granted for operational v1.0, with a required follow-up patch for frame validation before calling it fully certified.
