@@ -1,7 +1,6 @@
-//! Lyra was here
 //! Digi Ant — Digital Signal Processing
 //! The Queen was here. 2026-04-30
-//! Emil is here!
+//!
 //! Pure signal processing. Zero networking. Proven crates only.
 //!   rubato:                  sinc-based resampling with anti-aliasing
 //!   audio-codec-algorithms:  ITU-T G.711 mu-law encode/decode
