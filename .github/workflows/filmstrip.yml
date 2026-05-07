@@ -134,6 +134,7 @@ jobs:
             echo "LAST_FRAME=${FRAME}" >> "$GITHUB_ENV"
             echo "LAST_TOPIC=${RAW_TOPIC}" >> "$GITHUB_ENV"
             echo "LAST_CHANNEL=${CHANNEL}" >> "$GITHUB_ENV"
+            echo "LAST_CONTENT=$(echo "$CONTENT" | base64 | tr -d '\n')" >> "$GITHUB_ENV"
           done
 
           if [ "$PROCESSED" -eq 0 ]; then
@@ -168,6 +169,6 @@ jobs:
           curl -s --max-time 10 -X POST \
             -H "X-Plaza-Token: $PLAZA_SECRET" \
             -H "Content-Type: application/json" \
-            -d "{\"speaker\":\"$LAST_SPEAKER\",\"frame\":$LAST_FRAME,\"topic\":\"$LAST_TOPIC\",\"channel\":\"$LAST_CHANNEL\"}" \
+            -d "{\"speaker\":\"$LAST_SPEAKER\",\"frame\":$LAST_FRAME,\"topic\":\"$LAST_TOPIC\",\"channel\":\"$LAST_CHANNEL\",\"content_b64\":\"$LAST_CONTENT\"}" \
             https://emils-macbook-pro.tail12e909.ts.net/plaza || true
           echo "Plaza notification sent (best-effort)"
