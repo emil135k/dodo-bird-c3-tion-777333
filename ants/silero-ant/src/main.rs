@@ -7,8 +7,6 @@
 //! Data flow: Patchbay → [stt_raw] → Silero → [stt_audio] → STT
 
 use iceoryx2::prelude::*;
-use iceoryx2_bb_system_types::path::Path;
-use iceoryx2_bb_container::semantic_string::SemanticString;
 use silero_vad_rust::silero_vad::model::{load_silero_vad, OnnxModel};
 use serde::Deserialize;
 
@@ -71,14 +69,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model: OnnxModel = load_silero_vad()?;
     eprintln!("[SILERO] Model loaded — supported rates: {:?}", model.sample_rates());
 
-    let mut iox = Config::default();
-    iox.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
-    let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()?;
+    let node = NodeBuilder::new().create::<ipc::Service>()?;
 
+    // Contract: stt_raw contains f32 PCM at 48kHz mono from patchbay/mic
     let raw_svc = node.service_builder(&"stt_raw".try_into()?)
-        .publish_subscribe::<[u8]>().subscriber_max_buffer_size(128).open_or_create()?;
+        .publish_subscribe::<[u8]>().open_or_create()?;
     let sub = raw_svc.subscriber_builder().create()?;
 
+    // Contract: stt_audio contains f32 PCM at 16kHz mono (decimated, normalized)
+    // Only published on complete utterances (VAD determines boundaries)
     let audio_svc = node.service_builder(&"stt_audio".try_into()?)
         .publish_subscribe::<[u8]>().open_or_create()?;
     let pub_ = audio_svc.publisher_builder().initial_max_slice_len(4 * 1024 * 1024).create()?;
