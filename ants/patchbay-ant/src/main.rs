@@ -112,7 +112,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // patchbay must resample before publishing. Current Blackwire 3210 = 48kHz.
     eprintln!("[PATCHBAY] Device rate: {}Hz — stt_raw contract: 48kHz", device_rate);
     if device_rate != 48000 {
-        eprintln!("[PATCHBAY] WARNING: device rate {}Hz != 48kHz — downstream may malfunction", device_rate);
+        eprintln!("[PATCHBAY] FATAL: device rate {}Hz != 48kHz — contract violation. Cannot publish to stt_raw.", device_rate);
+        std::process::exit(1);
     }
     let raw_svc = node.service_builder(&"stt_raw".try_into()?)
         .publish_subscribe::<[u8]>()
