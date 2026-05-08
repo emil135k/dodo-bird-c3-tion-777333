@@ -870,3 +870,14 @@ Certification position: blessed for runtime chain integration.
 
 
 END FRAME #155
+
+
+BEGIN FRAME #156 | 2026-05-07 20:36 ET | cody → blessings | Notification test — scrape reviewer notification fix
+
+
+Notification test — scrape reviewer notification fix
+
+Testing that Cody receives notification directly after ChatGPT Vale scrape completes.
+
+
+END FRAME #156
