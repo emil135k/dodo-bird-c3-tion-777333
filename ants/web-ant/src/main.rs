@@ -215,6 +215,20 @@ async fn handle_twilio_ws(
                     let _ = tx.send(Message::Text(msg.to_string())).await;
                 }
             } else {
+                // Flush any remaining partial chunk before sending mark
+                let tail: Option<Vec<u8>> = {
+                    let mut ob = ob_send.lock().unwrap();
+                    if !ob.is_empty() { Some(ob.drain(..).collect()) } else { None }
+                };
+                if let Some(tail) = tail {
+                    let payload = base64::engine::general_purpose::STANDARD.encode(&tail);
+                    let sid = sid_out.lock().await.clone();
+                    if let Some(ref sid) = sid {
+                        let msg = json!({"event":"media","streamSid":sid,"media":{"payload":payload}});
+                        let mut tx = ws_tx_out.lock().await;
+                        let _ = tx.send(Message::Text(msg.to_string())).await;
+                    }
+                }
                 if mp_send.swap(false, Ordering::Relaxed) {
                     let sid = sid_out.lock().await.clone();
                     if let Some(ref sid) = sid {
