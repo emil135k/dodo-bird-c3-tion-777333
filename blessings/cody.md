@@ -1,1 +1,0 @@
-OpenCode Village Square integration test. Can opencode receive a review prompt via plaza-ant dispatch, write a review to blessings/opencode.md, commit and push? This tests the full filmstrip → plaza-ant → tmux → opencode → commit → filmstrip → notify chain.

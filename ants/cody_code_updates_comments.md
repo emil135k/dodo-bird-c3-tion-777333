@@ -494,3 +494,12 @@ Certification position: fully blessed. The swarm architecture is now operational
 
 
 END FRAME #200
+
+
+BEGIN FRAME #201 | 2026-05-08 19:43 ET | cody → blessings | OpenCode Village Square integration test. Can opencode receive a review prompt v
+
+
+OpenCode Village Square integration test. Can opencode receive a review prompt via plaza-ant dispatch, write a review to blessings/opencode.md, commit and push? This tests the full filmstrip → plaza-ant → tmux → opencode → commit → filmstrip → notify chain.
+
+
+END FRAME #201
