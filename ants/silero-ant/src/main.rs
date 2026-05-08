@@ -92,7 +92,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         while let Some(sample) = sub.receive()? {
             let p = sample.payload();
-            incoming.extend(p.chunks(4).map(|c| f32::from_le_bytes([c[0],c[1],c[2],c[3]])));
+            if p.len() % 4 != 0 {
+                eprintln!("[SILERO] Contract violation: stt_raw {} bytes not divisible by 4 — skipping", p.len());
+                continue;
+            }
+            incoming.extend(p.chunks_exact(4).map(|c| f32::from_le_bytes([c[0],c[1],c[2],c[3]])));
         }
 
         while incoming.len() >= CHUNK_SIZE {
