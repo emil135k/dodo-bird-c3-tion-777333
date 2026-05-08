@@ -106,7 +106,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- ICEORYX2 BUS SETUP ---
     let node = NodeBuilder::new().create::<ipc::Service>()?;
 
-    // Contract: stt_raw contains f32 PCM at device native rate (48kHz typical)
+    // Contract: stt_raw contains f32 PCM at 48kHz mono.
+    // Patchbay captures at the device's native rate and publishes as-is.
+    // Downstream ants (silero-ant) expect 48kHz — if the device rate differs,
+    // patchbay must resample before publishing. Current Blackwire 3210 = 48kHz.
+    eprintln!("[PATCHBAY] Device rate: {}Hz — stt_raw contract: 48kHz", device_rate);
+    if device_rate != 48000 {
+        eprintln!("[PATCHBAY] WARNING: device rate {}Hz != 48kHz — downstream may malfunction", device_rate);
+    }
     let raw_svc = node.service_builder(&"stt_raw".try_into()?)
         .publish_subscribe::<[u8]>()
         .open_or_create()?;
