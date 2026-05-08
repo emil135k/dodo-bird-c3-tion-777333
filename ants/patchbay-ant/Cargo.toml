@@ -1,14 +1,12 @@
 [package]
 name = "patchbay-ant"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Patchbay Ant — Audio device routing. Config-driven. One ant, one job."
+description = "Patchbay Ant — Audio device routing. Replaces ear + mouth. Config-driven."
 authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
 
 [dependencies]
-iceoryx2 = "0.6"
-iceoryx2-bb-system-types = "0.6"
-iceoryx2-bb-container = "0.6"
+iceoryx2 = "0.8"
 
 # Audio device access
 cpal = "0.15"

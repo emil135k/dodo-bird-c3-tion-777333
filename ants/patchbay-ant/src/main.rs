@@ -4,8 +4,6 @@
 //! Native sample-rate negotiation avoids the 8kHz telephony trap.
 
 use iceoryx2::prelude::*;
-use iceoryx2_bb_system_types::path::Path;
-use iceoryx2_bb_container::semantic_string::SemanticString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rodio::{OutputStream, Sink, buffer::SamplesBuffer};
 use serde::Deserialize;
@@ -106,10 +104,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle)?));
 
     // --- ICEORYX2 BUS SETUP ---
-    let mut iox = Config::default();
-    iox.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
-    let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()?;
+    let node = NodeBuilder::new().create::<ipc::Service>()?;
 
+    // Contract: stt_raw contains f32 PCM at device native rate (48kHz typical)
     let raw_svc = node.service_builder(&"stt_raw".try_into()?)
         .publish_subscribe::<[u8]>()
         .open_or_create()?;
@@ -117,9 +114,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .initial_max_slice_len(4 * 1024 * 1024)
         .create()?;
 
+    // Contract: tts_audio contains f32 PCM at 24kHz mono from tts-ant
     let audio_svc = node.service_builder(&"tts_audio".try_into()?)
         .publish_subscribe::<[u8]>()
-        .open()?;
+        .open_or_create()?;
     let spk_sub = audio_svc.subscriber_builder().create()?;
 
     eprintln!("[PATCHBAY] Sovereign Bus: stt_raw <-> tts_audio — READY");
@@ -160,7 +158,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 2. Play incoming Jarvina audio
         while let Some(sample) = spk_sub.receive()? {
             let raw = sample.payload();
-            let samples: Vec<f32> = raw.chunks(4)
+            if raw.len() % 4 != 0 {
+                eprintln!("[PATCHBAY] Contract violation: tts_audio {} bytes not divisible by 4 — skipping", raw.len());
+                continue;
+            }
+            let samples: Vec<f32> = raw.chunks_exact(4)
                 .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
                 .collect();
             if !samples.is_empty() {
