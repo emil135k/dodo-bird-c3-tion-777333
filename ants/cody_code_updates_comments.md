@@ -442,3 +442,14 @@ Certification position: blessed for swarm completion/runtime
 
 
 END FRAME #197
+
+
+BEGIN FRAME #198 | 2026-05-08 13:29 ET | cody → blessings | web-ant — tail chunk flush fix
+
+
+web-ant — tail chunk flush fix
+
+Partial chunks under 160 bytes now flushed before sending mark. No truncated audio, no stale bytes. Source: https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/web-ant/src/main.rs
+
+
+END FRAME #198
