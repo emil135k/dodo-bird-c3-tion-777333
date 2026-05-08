@@ -2,8 +2,6 @@
 //! Standalone daemon. iceoryx2 zero-copy IPC.
 
 use iceoryx2::prelude::*;
-use iceoryx2_bb_system_types::path::Path;
-use iceoryx2_bb_container::semantic_string::SemanticString;
 use once_cell::sync::Lazy;
 use ort::{session::Session, execution_providers::CoreMLExecutionProvider, value::Tensor};
 use std::sync::Mutex;
@@ -72,18 +70,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     { let _e = ENGINE.lock(); }
     { let _g = G2P_ENGINE.lock(); }
 
-    let mut config = Config::default();
-    config.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
-    let node = NodeBuilder::new().config(&config).create::<ipc::Service>()?;
+    let node = NodeBuilder::new().create::<ipc::Service>()?;
 
-    // Simple names, no slashes
+    // Contract: tts_text contains assistant replies (UTF-8) from llm-ant.
+    // Format: "voice_name:text" or plain text (defaults to af_heart).
     let text_svc = node.service_builder(&"tts_text".try_into()?)
         .publish_subscribe::<[u8]>()
-        .subscriber_max_buffer_size(64)
-        .history_size(16)
         .open_or_create()?;
     let sub = text_svc.subscriber_builder().create()?;
 
+    // Contract: tts_audio contains f32 PCM at 24kHz mono.
     let audio_svc = node.service_builder(&"tts_audio".try_into()?)
         .publish_subscribe::<[u8]>()
         .open_or_create()?;
@@ -108,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ("af_heart".to_string(), text)
             };
 
-            eprintln!("[TTS-ANT] Synth: \"{}\" voice={}", &speech[..speech.len().min(50)], voice);
+            eprintln!("[TTS-ANT] Synth: \"{}\" voice={}", speech.chars().take(50).collect::<String>(), voice);
 
             match synthesize(&speech, &voice) {
                 Ok(samples) => {
