@@ -84,8 +84,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input_config = input_dev.default_input_config()?;
     let device_rate = input_config.sample_rate().0;
     let channels = input_config.channels() as usize;
+    let sample_format = input_config.sample_format();
 
-    eprintln!("[PATCHBAY] Mic: {} ({}Hz, {}ch) — native on bus", input_dev.name()?, device_rate, channels);
+    eprintln!("[PATCHBAY] Mic: {} ({}Hz, {}ch, {:?})", input_dev.name()?, device_rate, channels, sample_format);
+
+    // Contract: input must be f32 — the callback and bus assume f32 samples
+    if sample_format != cpal::SampleFormat::F32 {
+        eprintln!("[PATCHBAY] FATAL: input format {:?} != F32 — contract violation", sample_format);
+        std::process::exit(1);
+    }
 
     // --- OUTPUT SETUP (Mouth) ---
     // Native Handshake: Demand high-fidelity 24kHz+ config to avoid 8kHz clipping
