@@ -1339,3 +1339,16 @@ Certification position: close, but not certified until the stt_raw sample-rate c
 
 
 END FRAME #176
+
+
+BEGIN FRAME #177 | 2026-05-07 21:42 ET | cody → blessings | patchbay-ant v0.2.0 certification — remaining reviewers
+
+
+patchbay-ant v0.2.0 certification — remaining reviewers
+
+Review the patchbay-ant source at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/patchbay-ant/src/main.rs
+
+Audio router — 173 lines Rust, iceoryx2 v0.8. Mic capture to stt_raw, playback from tts_audio at 24kHz. Review for certification.
+
+
+END FRAME #177
