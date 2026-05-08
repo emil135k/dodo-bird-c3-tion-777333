@@ -13,8 +13,6 @@
 //!   - Health endpoint
 
 use iceoryx2::prelude::*;
-use iceoryx2_bb_system_types::path::Path;
-use iceoryx2_bb_container::semantic_string::SemanticString;
 
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
@@ -76,12 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iox_out = outbound_queue.clone();
     let iox_active = call_active.clone();
     std::thread::spawn(move || {
-        let mut iox_cfg = Config::default();
-        iox_cfg.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
-        let node = NodeBuilder::new().config(&iox_cfg).create::<ipc::Service>()
+        let node = NodeBuilder::new().create::<ipc::Service>()
             .expect("iceoryx2 node");
 
-        // Publish inbound phone audio to phone_in bus (raw mu-law bytes)
+        // Contract: phone_in contains raw mu-law bytes from Twilio (8kHz, u-law encoded)
         let phone_in_svc = node.service_builder(&"phone_in".try_into().unwrap())
             .publish_subscribe::<[u8]>()
             .open_or_create().expect("phone_in service");
@@ -89,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .initial_max_slice_len(1024 * 1024)
             .create().expect("phone_in publisher");
 
-        // Subscribe to phone_out bus (mu-law bytes from digi-ant)
+        // Contract: phone_out contains mu-law bytes from digi-ant (8kHz, u-law encoded)
         let phone_out_svc = node.service_builder(&"phone_out".try_into().unwrap())
             .publish_subscribe::<[u8]>()
             .open_or_create().expect("phone_out service");

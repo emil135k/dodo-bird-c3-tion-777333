@@ -1,15 +1,13 @@
 [package]
 name = "web-ant"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Web Ant — WebSocket/HTTP gateway. Zero audio processing. Shuttles bytes."
+description = "Web Ant — WebSocket/HTTP gateway. Twilio Media Streams ↔ iceoryx2 bus. Zero audio processing."
 authors = ["Emil & Cody — Sparked Matter LLC"]
 
 [dependencies]
 # iceoryx2 zero-copy bus
-iceoryx2 = "0.6"
-iceoryx2-bb-system-types = "0.6"
-iceoryx2-bb-container = "0.6"
+iceoryx2 = "0.8"
 
 # Async runtime + WebSocket server
 tokio = { version = "1", features = ["full"] }
