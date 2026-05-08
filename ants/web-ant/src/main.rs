@@ -71,8 +71,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let outbound_queue: Arc<std::sync::Mutex<VecDeque<u8>>> = Arc::new(std::sync::Mutex::new(VecDeque::new()));
 
     // iceoryx2 thread — publisher/subscriber are !Send, must stay on one thread
+    let mark_pending_main = Arc::new(AtomicBool::new(false));
     let iox_out = outbound_queue.clone();
     let iox_active = call_active.clone();
+    let iox_mark = mark_pending_main.clone();
     std::thread::spawn(move || {
         let node = NodeBuilder::new().create::<ipc::Service>()
             .expect("iceoryx2 node");
@@ -109,7 +111,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if mulaw.is_empty() { continue; }
                     let dur = mulaw.len() as f32 / 8000.0;
                     eprintln!("[WEB] phone_out→Twilio: {:.1}s ({} bytes)", dur, mulaw.len());
-                    if let Ok(mut ob) = iox_out.lock() { ob.extend(mulaw.iter()); }
+                    if let Ok(mut ob) = iox_out.lock() {
+                        ob.extend(mulaw.iter());
+                        iox_mark.store(true, Ordering::Relaxed);
+                    }
                 }
             }
 
@@ -140,13 +145,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let sp = speaking.clone();
             let ob = outbound_queue.clone();
             let tx = iox_tx.clone();
+            let mp = mark_pending_main.clone();
             move |ws: WebSocketUpgrade| {
                 let ca = ca.clone();
                 let sp = sp.clone();
                 let ob = ob.clone();
                 let tx = tx.clone();
+                let mp = mp.clone();
                 async move {
-                    ws.on_upgrade(move |socket| handle_twilio_ws(socket, ca, sp, ob, tx))
+                    ws.on_upgrade(move |socket| handle_twilio_ws(socket, ca, sp, ob, tx, mp))
                 }
             }
         }))
@@ -167,6 +174,7 @@ async fn handle_twilio_ws(
     speaking: Arc<AtomicBool>,
     outbound_queue: Arc<std::sync::Mutex<VecDeque<u8>>>,
     iox_tx: std::sync::mpsc::Sender<Vec<u8>>,
+    mark_pending: Arc<AtomicBool>,
 ) {
     if call_active.load(Ordering::Relaxed) {
         eprintln!("[WS] Rejected — another stream already active");
@@ -180,7 +188,7 @@ async fn handle_twilio_ws(
     let (ws_tx, mut ws_rx) = socket.split();
     let ws_tx = Arc::new(Mutex::new(ws_tx));
     let stream_sid: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-    let mark_pending = Arc::new(AtomicBool::new(false));
+    // mark_pending is passed in from main — shared with iox thread
 
     // Outbound sender — drains mu-law queue → Twilio in 160-byte chunks (20ms at 8kHz)
     let ws_tx_out = Arc::clone(&ws_tx);
