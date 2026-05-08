@@ -304,27 +304,36 @@ async fn handle_plaza(
     (StatusCode::OK, "ok")
 }
 
-/// Pop the next reviewer from the queue and dispatch — sets active_reviewer
+/// Pop the next reviewer from the queue and dispatch — loops for scrape reviewers
 async fn dispatch_next(state: SharedState) {
-    let next = {
-        let mut plaza = state.write().await;
-        plaza.active_reviewer = None;
-        plaza.queue.pop_front()
-    };
-
-    if let Some((idx, event)) = next {
-        let reviewer = &REVIEWERS[idx];
-        {
+    loop {
+        let next = {
             let mut plaza = state.write().await;
-            plaza.active_reviewer = Some(reviewer.display_name.to_string());
-            println!(
-                "[plaza-ant] Dispatching next in queue: {} ({} remaining)",
-                reviewer.display_name, plaza.queue.len()
-            );
+            plaza.active_reviewer = None;
+            plaza.queue.pop_front()
+        };
+
+        if let Some((idx, event)) = next {
+            let reviewer = &REVIEWERS[idx];
+            {
+                let mut plaza = state.write().await;
+                plaza.active_reviewer = Some(reviewer.display_name.to_string());
+                println!(
+                    "[plaza-ant] Dispatching next in queue: {} ({} remaining)",
+                    reviewer.display_name, plaza.queue.len()
+                );
+            }
+            let needs_next = dispatch_reviewer(reviewer, &event, state.clone()).await;
+            if needs_next {
+                // Scrape reviewer finished — loop to dispatch next immediately
+                continue;
+            }
+            // Self-push/tmux reviewer — wait for filmstrip callback
+            break;
+        } else {
+            println!("[plaza-ant] Queue empty — all reviewers dispatched");
+            break;
         }
-        dispatch_reviewer(reviewer, &event, state.clone()).await;
-    } else {
-        println!("[plaza-ant] Queue empty — all reviewers dispatched");
     }
 }
 
@@ -376,7 +385,8 @@ async fn handle_admin(
     }
 }
 
-async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state: SharedState) {
+/// Returns true if the caller should call dispatch_next (scrape completed)
+async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state: SharedState) -> bool {
     println!(
         "[plaza-ant] Dispatching to {} for FRAME #{}",
         reviewer.display_name, event.frame
@@ -412,16 +422,17 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state:
             if *scrape {
                 // Scrape reviewers: plaza-ant handles the push
                 dispatch_cdp(tab_match, true, reviewer, event, &message).await;
-                // Scrape done — notify Cody directly (don't wait for filmstrip callback)
+                // Scrape done — notify Cody and advance queue directly
                 notify_cody(&format!(
                     "{} review scraped and pushed. Check the tape.",
                     reviewer.display_name
                 )).await;
-                // Clear active_reviewer and let filmstrip callback advance the queue
+                // Clear active_reviewer and dispatch next — don't wait for filmstrip callback
                 {
                     let mut plaza = state.write().await;
                     plaza.active_reviewer = None;
                 }
+                return true; // caller must call dispatch_next
             } else {
                 // Self-push reviewers: they advance via filmstrip callback
                 let push_message = format!(
@@ -432,6 +443,7 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state:
             }
         }
     }
+    false // filmstrip callback will advance the queue
 }
 
 // ── tmux dispatch (CLI reviewers) ──────────────────────────────────────
