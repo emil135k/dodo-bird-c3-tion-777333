@@ -41,6 +41,7 @@ fn synthesize(text: &str, voice: &str) -> Result<Vec<f32>, String> {
     let (phonemes, _) = g2p.g2p(text).map_err(|e| e.to_string())?;
     let ids: Vec<i64> = kokoro_g2p::kokoro::phonemes_to_ids(&phonemes).iter().map(|&id| id as i64).collect();
     if ids.len() < 3 { return Err("too few tokens".into()); }
+    if ids.len() > 500 { return Err(format!("too many tokens ({}) — max 500", ids.len())); }
 
     let voice_data = load_voice(voice)?;
     let idx = ids.len().min(509);
@@ -98,8 +99,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             if text.is_empty() { continue; }
 
+            // Voice prefix: only accept if prefix is a valid voice file (no spaces, short)
             let (voice, speech) = if let Some(idx) = text.find(':') {
-                (text[..idx].to_string(), text[idx+1..].to_string())
+                let prefix = &text[..idx];
+                if prefix.len() < 20 && !prefix.contains(' ') && load_voice(prefix).is_ok() {
+                    (prefix.to_string(), text[idx+1..].to_string())
+                } else {
+                    ("af_heart".to_string(), text)
+                }
             } else {
                 ("af_heart".to_string(), text)
             };
