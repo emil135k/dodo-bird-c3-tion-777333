@@ -412,11 +412,15 @@ async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state:
             if *scrape {
                 // Scrape reviewers: plaza-ant handles the push
                 dispatch_cdp(tab_match, true, reviewer, event, &message).await;
-                // Scrape done — clear active_reviewer so filmstrip callback can advance queue
+                // Scrape done — notify Cody directly (don't wait for filmstrip callback)
+                notify_cody(&format!(
+                    "{} review scraped and pushed. Check the tape.",
+                    reviewer.display_name
+                )).await;
+                // Clear active_reviewer and let filmstrip callback advance the queue
                 {
                     let mut plaza = state.write().await;
                     plaza.active_reviewer = None;
-                    println!("[plaza-ant] Scrape complete for {} — ready for callback", reviewer.display_name);
                 }
             } else {
                 // Self-push reviewers: they advance via filmstrip callback
