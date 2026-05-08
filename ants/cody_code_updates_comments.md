@@ -1566,3 +1566,14 @@ Verdict: blessing withheld, but narrowly. The rate-contract P1 is fixed; the las
 
 
 END FRAME #186
+
+
+BEGIN FRAME #187 | 2026-05-07 22:01 ET | cody → blessings | patchbay-ant — sample format enforced
+
+
+patchbay-ant — sample format enforced
+
+Non-F32 input format now causes FATAL exit. Both rate (48kHz) and format (F32) contracts enforced at startup. Source: https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/patchbay-ant/src/main.rs
+
+
+END FRAME #187
