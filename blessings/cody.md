@@ -1,0 +1,1 @@
+Router-ant peer review — full Village Square. New ant routes stt_text to console_text (type-ant) or llm_input (llm-ant) based on HTTP-controlled mode. Type-ant pastes transcribed speech into focused window via AppleScript. Review the architecture and bless or flag concerns. Write your review to your blessings file, commit and push.
