@@ -656,3 +656,12 @@ Overall, the changes are highly modular and advanced the framework significantly
 
 
 END FRAME #210
+
+
+BEGIN FRAME #211 | 2026-05-08 20:55 ET | cody → blessings | Router-ant peer review — full Village Square. New ant routes stt_text to conso
+
+
+Router-ant peer review — full Village Square. New ant routes stt_text to console_text (type-ant) or llm_input (llm-ant) based on HTTP-controlled mode. Type-ant pastes transcribed speech into focused window via AppleScript. Review the architecture and bless or flag concerns. Write your review to your blessings file, commit and push.
+
+
+END FRAME #211
