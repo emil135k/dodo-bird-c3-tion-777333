@@ -101,6 +101,11 @@ const REVIEWERS: &[ReviewerConfig] = &[
         display_name: "airy",
         dispatch: DispatchMethod::Cdp { tab_match: "claude.ai", scrape: false },
     },
+    ReviewerConfig {
+        entry_file: "blessings/opencode.md",
+        display_name: "opencode",
+        dispatch: DispatchMethod::Tmux { session: "opencode" },
+    },
 ];
 
 /// Decode base64 string
