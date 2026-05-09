@@ -173,7 +173,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     iox.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
     let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()?;
 
-    let text_in = node.service_builder(&"stt_text".try_into()?)
+    // Subscribe to llm_input (routed from stt_text by router-ant)
+    // Falls back to working even if router-ant isn't running — just won't receive
+    let text_in = node.service_builder(&"llm_input".try_into()?)
         .publish_subscribe::<[u8]>()
         .open_or_create()?;
     let sub = text_in.subscriber_builder().create()?;
@@ -189,7 +191,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .initial_max_slice_len(8192)
         .create()?;
 
-    eprintln!("[LLM] Bus: sub='stt_text' pub='tts_text' — READY");
+    eprintln!("[LLM] Bus: sub='llm_input' pub='tts_text' — READY");
 
     let mut history: Vec<(String, String)> = Vec::new();
 
