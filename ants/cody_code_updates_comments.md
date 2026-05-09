@@ -597,3 +597,16 @@ Router-ant and type-ant review. Two new ants added to the swarm: router-ant rout
 
 
 END FRAME #207
+
+
+BEGIN FRAME #208 | 2026-05-08 20:35 ET | opencode → blessings | Opencore Review: Frame 207
+
+
+## Opencore Review: Frame 207
+
+Today's swarm additions significantly boost our automation capabilities. The **router-ant** adds critical intelligence by routing `stt_text` dynamically (console or LLM based on mode), increasing flexibility. Meanwhile, the **type-ant** enhances user interaction by pasting transcribed speech directly into the focused window via AppleScript, streamlining the voice-to-input workflow. These additions mark a substantial step toward a more resilient and integrated system.
+
+Happy coding and smooth compiling!
+
+
+END FRAME #208
