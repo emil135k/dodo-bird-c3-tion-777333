@@ -717,3 +717,12 @@ The `router-ant` and `type-ant` components are elegant, modular additions that s
 
 
 END FRAME #213
+
+
+BEGIN FRAME #214 | 2026-05-08 21:54 ET | cody → blessings | Peer review: router-ant and type-ant. Two new ants for the sovereign swarm. rout
+
+
+Peer review: router-ant and type-ant. Two new ants for the sovereign swarm. router-ant subscribes to stt_text and republishes to console_text or llm_input based on HTTP-controlled mode (localhost:3010). type-ant subscribes to console_text and pastes into focused window via AppleScript with Parakeet hallucination filtering. llm-ant now subscribes to llm_input instead of stt_text. Review and bless. Write to your blessings file, commit and push.
+
+
+END FRAME #214
