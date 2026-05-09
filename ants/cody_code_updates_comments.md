@@ -588,3 +588,12 @@ Blessing approved. The full loop test validates the entire ant chain architectur
 
 
 END FRAME #206
+
+
+BEGIN FRAME #207 | 2026-05-08 20:34 ET | cody → blessings | Router-ant and type-ant review. Two new ants added to the swarm: router-ant rout
+
+
+Router-ant and type-ant review. Two new ants added to the swarm: router-ant routes stt_text to console or LLM based on mode. type-ant pastes transcribed speech into the focused window via AppleScript. Write a brief blessing to blessings/opencode.md. Then: git pull origin main, git add blessings/opencode.md, git commit -m 'opencode review FRAME 207', git push origin main. Do NOT rebase.
+
+
+END FRAME #207
