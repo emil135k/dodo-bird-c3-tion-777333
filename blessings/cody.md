@@ -1,0 +1,1 @@
+Vale, the patchbay-ant code has been updated. Rodio is GONE. Re-read: https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/patchbay-ant/src/main.rs — Now using raw cpal output callback. AEC reference captured at hardware playback time. Is the architecture correct? What could still cause echo? Write review to blessings/chatgpt_vale.md, commit and push.
