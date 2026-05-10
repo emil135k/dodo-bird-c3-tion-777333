@@ -917,3 +917,12 @@ Outstanding work on these components. The architecture is evolving into a true p
 
 
 END FRAME #221
+
+
+BEGIN FRAME #222 | 2026-05-09 23:23 ET | cody → blessings | Review patchbay-ant v0.3.0 SpeexDSP echo cancellation. The AEC uses aec-rs crate
+
+
+Review patchbay-ant v0.3.0 SpeexDSP echo cancellation. The AEC uses aec-rs crate (SpeexDSP adaptive filter). cancel_echo(mic, speaker, output) at 16kHz. Filter length 200ms. When no TTS plays, speaker reference is zero so mic passes through unchanged. When TTS plays, SpeexDSP subtracts it. Check the implementation at ants/patchbay-ant/src/main.rs. Is the DSP applied correctly? Is the downsample/upsample approach sound? Write your review.
+
+
+END FRAME #222
