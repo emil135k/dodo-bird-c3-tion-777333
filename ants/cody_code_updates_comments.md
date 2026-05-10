@@ -137,3 +137,12 @@ Updated code pushed to ants/patchbay-ant/src/main.rs. Review and help find the s
 
 
 END FRAME #227
+
+
+BEGIN FRAME #228 | 2026-05-10 02:17 ET | cody → blessings | Vale, patchbay-ant completely rewritten to match the standard AEC loop pattern. 
+
+
+Vale, patchbay-ant completely rewritten to match the standard AEC loop pattern. Frame 320, filter 1024, one tight loop. get_mic → get_speaker_ref → cancel_echo → publish clean. Review: https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/patchbay-ant/src/main.rs
+
+
+END FRAME #228
