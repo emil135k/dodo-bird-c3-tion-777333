@@ -1,0 +1,72 @@
+{
+  "": {
+    "dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ParakeetTDT.d",
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ParakeetTDT.o",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/master.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/AudioLoader.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/AudioLoader.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/AudioLoader~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/AudioLoader.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/DecoderWorker.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/DecoderWorker.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/DecoderWorker~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/DecoderWorker.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/FeatureBag.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/FeatureBag.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/FeatureBag~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/FeatureBag.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/GreedyTDTDecoder.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/GreedyTDTDecoder.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/GreedyTDTDecoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/GreedyTDTDecoder.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/MelFeatureExtractor.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/MelFeatureExtractor.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/MelFeatureExtractor~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/MelFeatureExtractor.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/MelFilterBank.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/MelFilterBank.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/MelFilterBank~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/MelFilterBank.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/ModelCache.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelCache.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelCache.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/ModelDownloader.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelDownloader.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelDownloader~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelDownloader.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/ModelRunner.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelRunner.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelRunner~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ModelRunner.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/ParakeetTranscriber.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ParakeetTranscriber.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ParakeetTranscriber~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/ParakeetTranscriber.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/Pipeline.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Pipeline.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Pipeline~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Pipeline.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/Tokenizer.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Tokenizer.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Tokenizer~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Tokenizer.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetTDT/Types.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Types.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Types~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetTDT.build/Types.swiftdeps"
+  }
+}

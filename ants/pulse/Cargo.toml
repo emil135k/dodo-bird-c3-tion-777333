@@ -1,11 +1,11 @@
 [package]
 name = "pulse"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Pulse — sends text to the TTS ant via iceoryx2 bus. Test tool."
-authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+authors = ["Emil & Cody — Sparked Matter LLC"]
 
 [dependencies]
-iceoryx2 = "0.6"
-iceoryx2-bb-system-types = "0.6"
-iceoryx2-bb-container = "0.6"
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"

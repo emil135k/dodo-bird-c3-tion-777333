@@ -1,0 +1,44 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "parakeet-coreml-swift",
+          "kind" : "fileSystem",
+          "location" : "/Users/rocketman/crystalballmini/parakeet-coreml-swift",
+          "name" : "ParakeetCoreML"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/rocketman/crystalballmini/parakeet-coreml-swift"
+        },
+        "subpath" : "parakeet-coreml-swift"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "swift-argument-parser",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/apple/swift-argument-parser.git",
+          "name" : "swift-argument-parser"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "626b5b7b2f45e1b0b1c6f4a309296d1d21d7311b",
+            "version" : "1.7.1"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "swift-argument-parser"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

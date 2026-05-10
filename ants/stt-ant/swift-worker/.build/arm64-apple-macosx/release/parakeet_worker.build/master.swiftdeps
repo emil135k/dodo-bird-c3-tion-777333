@@ -1,0 +1,6 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "cac1f5884541c4ad8f671ae9d0fb3a2b5014c2fca39813183be28f1c726f7cae"
+build_start_time: [1777744388, 351243000]
+build_end_time: [1777744389, 301345000]
+inputs:
+  "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/Sources/main.swift": [1777744323, 298529294]

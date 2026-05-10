@@ -11,10 +11,7 @@ iceoryx2 = "0.8"
 # Audio device access
 cpal = "0.15"
 
-# Playback
-rodio = "0.20"
-
-# Echo cancellation — SpeexDSP adaptive filter
+# Echo cancellation — SpeexDSP adaptive filter (no rodio — raw cpal for timing)
 aec-rs = "1.0.0"
 
 # Config

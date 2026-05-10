@@ -1,0 +1,12 @@
+{
+  "": {
+    "dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetCLI.build/ParakeetCLI.d",
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetCLI.build/ParakeetCLI.o",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetCLI.build/master.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/parakeet-coreml-swift/Sources/ParakeetCLI/ParakeetCLI.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetCLI.build/ParakeetCLI.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetCLI.build/ParakeetCLI~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ParakeetCLI.build/ParakeetCLI.swiftdeps"
+  }
+}

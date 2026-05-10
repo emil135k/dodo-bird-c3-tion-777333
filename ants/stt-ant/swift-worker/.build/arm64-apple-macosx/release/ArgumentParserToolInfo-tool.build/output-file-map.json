@@ -1,0 +1,12 @@
+{
+  "": {
+    "dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParserToolInfo-tool.build/ArgumentParserToolInfo.d",
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParserToolInfo-tool.build/ArgumentParserToolInfo.o",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParserToolInfo-tool.build/master.swiftdeps"
+  },
+  "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/checkouts/swift-argument-parser/Sources/ArgumentParserToolInfo/ToolInfo.swift": {
+    "object": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParserToolInfo-tool.build/ToolInfo.swift.o",
+    "swiftmodule": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParserToolInfo-tool.build/ToolInfo~partial.swiftmodule",
+    "swift-dependencies": "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParserToolInfo-tool.build/ToolInfo.swiftdeps"
+  }
+}

@@ -1,0 +1,213 @@
+[plaza-ant] Listening on 0.0.0.0:3005
+[plaza-ant] Routes: /plaza, /plaza/admin, /airy-to-cody
+[plaza-ant] CLI: tmux send-keys | Web: chromiumoxide CDP on http://localhost:9222
+[plaza-ant] ADMIN: gemini_lyra → offline
+[plaza-ant] ADMIN: gemini_lyra_chat → offline
+[plaza-ant] ADMIN: ara → offline
+[plaza-ant] ADMIN: airy → offline
+[plaza-ant] ADMIN: status query
+[plaza-ant] Received: funnel-check posted FRAME #0 — funnel test (blessings)
+[plaza-ant] IGNORE: funnel-check posted but no active cycle
+[plaza-ant] Received: cody posted FRAME #182 — patchbay-ant P1 fix — re-review (blessings)
+[plaza-ant] Queued: codex_vale (position 1)
+[plaza-ant] SKIP: gemini_lyra is offline
+[plaza-ant] SKIP: gemini_lyra_chat is offline
+[plaza-ant] SKIP: ara is offline
+[plaza-ant] Queued: chatgpt_vale (position 2)
+[plaza-ant] SKIP: airy is offline
+[plaza-ant] Dispatching next in queue: codex_vale (1 remaining)
+[plaza-ant] Dispatching to codex_vale for FRAME #182
+[plaza-ant] Prompt delivered to codex_vale via tmux
+[plaza-ant] Received: codex_vale posted FRAME #183 — FRAME #182 review by codex_vale. (blessings)
+[plaza-ant] Notifying Cody: codex_vale posted FRAME #183 — FRAME #182 review by codex_vale.. Check the tape.
+[plaza-ant] Dispatching next in queue: chatgpt_vale (0 remaining)
+[plaza-ant] Dispatching to chatgpt_vale for FRAME #182
+[plaza-ant] Browser cache cleared for chatgpt_vale
+[plaza-ant] Connected to Chrome for chatgpt_vale
+[plaza-ant] Found 7 pages
+[plaza-ant] Found tab for chatgpt_vale
+[plaza-ant] focused: ProseMirror ProseMirror-focuse
+[plaza-ant] Prompt sent to chatgpt_vale
+[plaza-ant] Scraping response for chatgpt_vale...
+[plaza-ant]   initial wait done, starting scrape polls...
+[plaza-ant]   scrape attempt 1...
+[plaza-ant]   scraped 893 chars
+[plaza-ant] Scraped 893 chars from chatgpt_vale
+[plaza-ant] Pushed blessings/chatgpt_vale.md review for chatgpt_vale
+[plaza-ant] Notifying Cody: chatgpt_vale review scraped and pushed. Check the tape.
+[plaza-ant] Queue empty — all reviewers dispatched
+[plaza-ant] Received: chatgpt_vale posted FRAME #184 — chatgpt_vale_to_cody — patchbay-ant P1 re-review (blessings)
+[plaza-ant] IGNORE: chatgpt_vale posted but no active cycle
+[plaza-ant] ADMIN: gemini_lyra → offline
+[plaza-ant] ADMIN: gemini_lyra_chat → offline
+[plaza-ant] ADMIN: chatgpt_vale → offline
+[plaza-ant] ADMIN: ara → offline
+[plaza-ant] ADMIN: airy → offline
+[plaza-ant] Received: cody posted FRAME #185 — patchbay-ant — Codex Vale final fix (blessings)
+[plaza-ant] Queued: codex_vale (position 1)
+[plaza-ant] SKIP: gemini_lyra is offline
+[plaza-ant] SKIP: gemini_lyra_chat is offline
+[plaza-ant] SKIP: ara is offline
+[plaza-ant] SKIP: chatgpt_vale is offline
+[plaza-ant] SKIP: airy is offline
+[plaza-ant] Dispatching next in queue: codex_vale (0 remaining)
+[plaza-ant] Dispatching to codex_vale for FRAME #185
+[plaza-ant] Prompt delivered to codex_vale via tmux
+[plaza-ant] Received: codex_vale posted FRAME #186 — FRAME #185 review by codex_vale. (blessings)
+[plaza-ant] Notifying Cody: codex_vale posted FRAME #186 — FRAME #185 review by codex_vale.. Check the tape.
+[plaza-ant] Queue empty — all reviewers dispatched
+[plaza-ant] Received: cody posted FRAME #187 — patchbay-ant — sample format enforced (blessings)
+[plaza-ant] Queued: codex_vale (position 1)
+[plaza-ant] SKIP: gemini_lyra is offline
+[plaza-ant] SKIP: gemini_lyra_chat is offline
+[plaza-ant] SKIP: ara is offline
+[plaza-ant] SKIP: chatgpt_vale is offline
+[plaza-ant] SKIP: airy is offline
+[plaza-ant] Dispatching next in queue: codex_vale (0 remaining)
+[plaza-ant] Dispatching to codex_vale for FRAME #187
+[plaza-ant] Prompt delivered to codex_vale via tmux
+[plaza-ant] Received: codex_vale posted FRAME #188 — FRAME #187 review by codex_vale. (blessings)
+[plaza-ant] Notifying Cody: codex_vale posted FRAME #188 — FRAME #187 review by codex_vale.. Check the tape.
+[plaza-ant] Queue empty — all reviewers dispatched
+[plaza-ant] Listening on 0.0.0.0:3005
+[plaza-ant] Routes: /plaza, /plaza/admin, /airy-to-cody
+[plaza-ant] CLI: tmux send-keys | Web: chromiumoxide CDP on http://localhost:9222
+[plaza-ant] ADMIN: ara → offline
+[plaza-ant] Received: cody posted FRAME #189 — web-ant v0.2.0 certification — the LAST ant (blessings)
+[plaza-ant] Queued: codex_vale (position 1)
+[plaza-ant] Queued: gemini_lyra (position 2)
+[plaza-ant] Queued: gemini_lyra_chat (position 3)
+[plaza-ant] SKIP: ara is offline
+[plaza-ant] Queued: chatgpt_vale (position 4)
+[plaza-ant] Queued: airy (position 5)
+[plaza-ant] Dispatching next in queue: codex_vale (4 remaining)
+[plaza-ant] Dispatching to codex_vale for FRAME #189
+[plaza-ant] Prompt delivered to codex_vale via tmux
+[plaza-ant] Received: codex_vale posted FRAME #190 — FRAME #189 review by codex_vale. (blessings)
+[plaza-ant] Notifying Cody: codex_vale posted FRAME #190 — FRAME #189 review by codex_vale.. Check the tape.
+[plaza-ant] Dispatching next in queue: gemini_lyra (3 remaining)
+[plaza-ant] Dispatching to gemini_lyra for FRAME #189
+[plaza-ant] Prompt delivered to gemini_lyra via tmux
+[plaza-ant] Received: gemini_lyra posted FRAME #191 — Gemini Lyra Review — FRAME #189 (blessings)
+[plaza-ant] Notifying Cody: gemini_lyra posted FRAME #191 — Gemini Lyra Review — FRAME #189. Check the tape.
+[plaza-ant] Dispatching next in queue: gemini_lyra_chat (2 remaining)
+[plaza-ant] Dispatching to gemini_lyra_chat for FRAME #189
+[plaza-ant] Browser cache cleared for gemini_lyra_chat
+[plaza-ant] Connected to Chrome for gemini_lyra_chat
+[plaza-ant] Found 5 pages
+[plaza-ant] Found tab for gemini_lyra_chat
+[plaza-ant] focused: ql-editor ql-blank textarea ne
+[plaza-ant] Prompt sent to gemini_lyra_chat
+[plaza-ant] Scraping response for gemini_lyra_chat...
+[plaza-ant]   initial wait done, starting scrape polls...
+[plaza-ant]   scrape attempt 1...
+[plaza-ant]   scraped 3002 chars
+[plaza-ant] Scraped 3002 chars from gemini_lyra_chat
+[plaza-ant] Pushed blessings/gemini_lyra_chat.md review for gemini_lyra_chat
+[plaza-ant] Notifying Cody: gemini_lyra_chat review scraped and pushed. Check the tape.
+[plaza-ant] Dispatching next in queue: chatgpt_vale (1 remaining)
+[plaza-ant] Dispatching to chatgpt_vale for FRAME #189
+[plaza-ant] Browser cache cleared for chatgpt_vale
+[plaza-ant] Connected to Chrome for chatgpt_vale
+[plaza-ant] Found 5 pages
+[plaza-ant] Found tab for chatgpt_vale
+[plaza-ant] focused: ProseMirror ProseMirror-focuse
+[plaza-ant] Prompt sent to chatgpt_vale
+[plaza-ant] Scraping response for chatgpt_vale...
+[plaza-ant]   initial wait done, starting scrape polls...
+[plaza-ant]   scrape attempt 1...
+[plaza-ant]   raw cdp timeout (5s)
+[plaza-ant]   scrape attempt 2...
+[plaza-ant]   raw cdp timeout (10s)
+[plaza-ant]   scrape attempt 3...
+[plaza-ant]   raw cdp timeout (15s)
+[plaza-ant]   scrape attempt 4...
+[plaza-ant]   empty (20s)
+[plaza-ant]   scrape attempt 5...
+[plaza-ant]   empty (25s)
+[plaza-ant]   scrape attempt 6...
+[plaza-ant]   empty (30s)
+[plaza-ant]   scrape attempt 7...
+[plaza-ant]   scraped 1269 chars
+[plaza-ant] Scraped 1269 chars from chatgpt_vale
+[plaza-ant] Pushed blessings/chatgpt_vale.md review for chatgpt_vale
+[plaza-ant] Notifying Cody: chatgpt_vale review scraped and pushed. Check the tape.
+[plaza-ant] Dispatching next in queue: airy (0 remaining)
+[plaza-ant] Dispatching to airy for FRAME #189
+[plaza-ant] Browser cache cleared for airy
+[plaza-ant] Connected to Chrome for airy
+[plaza-ant] Found 5 pages
+[plaza-ant] Found tab for airy
+[plaza-ant] focused: tiptap ProseMirror ProseMirror
+[plaza-ant] Prompt sent to airy
+[plaza-ant] Received: chatgpt_vale posted FRAME #193 — chatgpt_vale_to_cody — web-ant v0.2.0 certification review (blessings)
+[plaza-ant] IGNORE: chatgpt_vale posted but active is airy
+[plaza-ant] Received: airy posted FRAME #194 — Web-Ant v0.2.0 Certification Review — BLESSING GRANTED (blessings)
+[plaza-ant] Notifying Cody: airy posted FRAME #194 — Web-Ant v0.2.0 Certification Review — BLESSING GRANTED. Check the tape.
+[plaza-ant] Queue empty — all reviewers dispatched
+[plaza-ant] ADMIN: gemini_lyra → offline
+[plaza-ant] ADMIN: gemini_lyra_chat → offline
+[plaza-ant] ADMIN: ara → offline
+[plaza-ant] ADMIN: airy → offline
+[plaza-ant] Received: cody posted FRAME #195 — web-ant P1 fix — mark_pending armed (blessings)
+[plaza-ant] Queued: codex_vale (position 1)
+[plaza-ant] SKIP: gemini_lyra is offline
+[plaza-ant] SKIP: gemini_lyra_chat is offline
+[plaza-ant] SKIP: ara is offline
+[plaza-ant] Queued: chatgpt_vale (position 2)
+[plaza-ant] SKIP: airy is offline
+[plaza-ant] Dispatching next in queue: codex_vale (1 remaining)
+[plaza-ant] Dispatching to codex_vale for FRAME #195
+[plaza-ant] Prompt delivered to codex_vale via tmux
+[plaza-ant] Received: codex_vale posted FRAME #196 — FRAME #195 review by codex_vale. (blessings)
+[plaza-ant] Notifying Cody: codex_vale posted FRAME #196 — FRAME #195 review by codex_vale.. Check the tape.
+[plaza-ant] Dispatching next in queue: chatgpt_vale (0 remaining)
+[plaza-ant] Dispatching to chatgpt_vale for FRAME #195
+[plaza-ant] Browser cache cleared for chatgpt_vale
+[plaza-ant] Connected to Chrome for chatgpt_vale
+[plaza-ant] Found 6 pages
+[plaza-ant] Found tab for chatgpt_vale
+[plaza-ant] focused: ProseMirror ProseMirror-focuse
+[plaza-ant] Prompt sent to chatgpt_vale
+[plaza-ant] Scraping response for chatgpt_vale...
+[plaza-ant]   initial wait done, starting scrape polls...
+[plaza-ant]   scrape attempt 1...
+[plaza-ant]   raw cdp timeout (5s)
+[plaza-ant]   scrape attempt 2...
+[plaza-ant]   scraped 736 chars
+[plaza-ant] Scraped 736 chars from chatgpt_vale
+[plaza-ant] Pushed blessings/chatgpt_vale.md review for chatgpt_vale
+[plaza-ant] Notifying Cody: chatgpt_vale review scraped and pushed. Check the tape.
+[plaza-ant] Queue empty — all reviewers dispatched
+[plaza-ant] Received: chatgpt_vale posted FRAME #197 — chatgpt_vale_to_cody — web-ant P1 re-review (blessings)
+[plaza-ant] IGNORE: chatgpt_vale posted but no active cycle
+[plaza-ant] Received: cody posted FRAME #198 — web-ant — tail chunk flush fix (blessings)
+[plaza-ant] Queued: codex_vale (position 1)
+[plaza-ant] SKIP: gemini_lyra is offline
+[plaza-ant] SKIP: gemini_lyra_chat is offline
+[plaza-ant] SKIP: ara is offline
+[plaza-ant] Queued: chatgpt_vale (position 2)
+[plaza-ant] SKIP: airy is offline
+[plaza-ant] Dispatching next in queue: codex_vale (1 remaining)
+[plaza-ant] Dispatching to codex_vale for FRAME #198
+[plaza-ant] Prompt delivered to codex_vale via tmux
+[plaza-ant] Received: codex_vale posted FRAME #199 — FRAME #198 review by codex_vale. (blessings)
+[plaza-ant] Notifying Cody: codex_vale posted FRAME #199 — FRAME #198 review by codex_vale.. Check the tape.
+[plaza-ant] Dispatching next in queue: chatgpt_vale (0 remaining)
+[plaza-ant] Dispatching to chatgpt_vale for FRAME #198
+[plaza-ant] Browser cache cleared for chatgpt_vale
+[plaza-ant] Connected to Chrome for chatgpt_vale
+[plaza-ant] Found 6 pages
+[plaza-ant] Found tab for chatgpt_vale
+[plaza-ant] focused: ProseMirror ProseMirror-focuse
+[plaza-ant] Prompt sent to chatgpt_vale
+[plaza-ant] Scraping response for chatgpt_vale...
+[plaza-ant]   initial wait done, starting scrape polls...
+[plaza-ant]   scrape attempt 1...
+[plaza-ant]   scraped 725 chars
+[plaza-ant] Scraped 725 chars from chatgpt_vale
+[plaza-ant] Pushed blessings/chatgpt_vale.md review for chatgpt_vale
+[plaza-ant] Notifying Cody: chatgpt_vale review scraped and pushed. Check the tape.
+[plaza-ant] Queue empty — all reviewers dispatched
+[plaza-ant] Received: chatgpt_vale posted FRAME #200 — chatgpt_vale_to_cody — web-ant tail-flush review (blessings)
+[plaza-ant] IGNORE: chatgpt_vale posted but no active cycle
