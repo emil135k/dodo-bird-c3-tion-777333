@@ -122,3 +122,12 @@ Test data left in iceoryx2 subscriber buffer contaminated Emil's first call atte
 - Located at `/tmp/test-inject/` — foundation for the functional test toolbox
 
 ---
+
+
+BEGIN FRAME #223 | 2026-05-10 00:40 ET | cody → blessings | Vale, the patchbay-ant code has been updated. Rodio is GONE. Re-read: https://gi
+
+
+Vale, the patchbay-ant code has been updated. Rodio is GONE. Re-read: https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/main/ants/patchbay-ant/src/main.rs — Now using raw cpal output callback. AEC reference captured at hardware playback time. Is the architecture correct? What could still cause echo? Write review to blessings/chatgpt_vale.md, commit and push.
+
+
+END FRAME #223
