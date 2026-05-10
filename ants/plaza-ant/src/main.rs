@@ -89,7 +89,7 @@ const REVIEWERS: &[ReviewerConfig] = &[
     ReviewerConfig {
         entry_file: "blessings/ara.md",
         display_name: "ara",
-        dispatch: DispatchMethod::Cdp { tab_match: "grok", scrape: false },
+        dispatch: DispatchMethod::Cdp { tab_match: "grok", scrape: true },
     },
     ReviewerConfig {
         entry_file: "blessings/chatgpt_vale.md",

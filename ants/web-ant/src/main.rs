@@ -157,10 +157,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }))
+        .route("/twilio-to-browser", post({
+            let ws_url = ws_url.clone();
+            move || {
+                let ws_url = ws_url.clone();
+                async move {
+                    let twiml = format!(
+                        r#"<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.Ruth-Neural">Patching you through to Airy. One moment.</Say><Connect><Stream url="{}/ws" /></Connect></Response>"#,
+                        ws_url
+                    );
+                    eprintln!("[WEB] Browser bridge call → {}/ws", ws_url);
+                    ([("content-type", "text/xml")], twiml)
+                }
+            }
+        }))
         .route("/health", get(|| async { "ok" }));
 
     eprintln!("[WEB] Listening on port {}", cfg.port);
-    eprintln!("[WEB] Webhook: {}/voice", cfg.server_url);
+    eprintln!("[WEB] Webhook: {}/voice (Jarvina)", cfg.server_url);
+    eprintln!("[WEB] Webhook: {}/twilio-to-browser (Airy bridge)", cfg.server_url);
     eprintln!("[WEB] READY — waiting for calls");
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", cfg.port)).await?;

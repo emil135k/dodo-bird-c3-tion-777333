@@ -1,8 +1,8 @@
 [package]
 name = "patchbay-ant"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-description = "Patchbay Ant — Audio device routing. Replaces ear + mouth. Config-driven."
+description = "Patchbay Ant — Audio device routing with SpeexDSP echo cancellation."
 authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
 
 [dependencies]
@@ -13,6 +13,9 @@ cpal = "0.15"
 
 # Playback
 rodio = "0.20"
+
+# Echo cancellation — SpeexDSP adaptive filter
+aec-rs = "1.0.0"
 
 # Config
 serde = { version = "1", features = ["derive"] }
