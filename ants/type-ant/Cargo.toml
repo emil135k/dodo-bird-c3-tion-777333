@@ -1,0 +1,11 @@
+[package]
+name = "type-ant"
+version = "0.1.0"
+edition = "2021"
+description = "Type Ant — Subscribes to console_text and types into focused window via AppleScript"
+authors = ["Emil & Cody — Sparked Matter LLC"]
+
+[dependencies]
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"
