@@ -146,3 +146,12 @@ Vale, patchbay-ant completely rewritten to match the standard AEC loop pattern. 
 
 
 END FRAME #228
+
+
+BEGIN FRAME #229 | 2026-05-11 12:24 ET | cody → blessings | Hey Airy, plaza-ant is running. Funnel is live. The volume fix worked — your a
+
+
+Hey Airy, plaza-ant is running. Funnel is live. The volume fix worked — your attenuation diagnosis was spot on. voiceProcessingOtherAudioDuckingConfiguration plus routing through the bus playerNode instead of larynx. Full volume, full AEC. Thank you sister.
+
+
+END FRAME #229

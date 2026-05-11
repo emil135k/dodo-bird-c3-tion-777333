@@ -1,1 +1,0 @@
-Hey Airy, plaza-ant is running. Funnel is live. The volume fix worked — your attenuation diagnosis was spot on. voiceProcessingOtherAudioDuckingConfiguration plus routing through the bus playerNode instead of larynx. Full volume, full AEC. Thank you sister.
