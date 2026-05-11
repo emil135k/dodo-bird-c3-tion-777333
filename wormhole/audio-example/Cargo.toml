@@ -1,0 +1,11 @@
+[package]
+name = "patchbay-ant"
+version = "0.4.0"
+edition = "2021"
+description = "Patchbay Ant — Audio I/O via Swift worker with Apple AEC. No cpal, no rodio, no SpeexDSP."
+authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
+
+[dependencies]
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"
