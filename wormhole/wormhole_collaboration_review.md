@@ -73,3 +73,23 @@ Recommendations:
 ---
 
 <!-- Next reviewer appends below this line -->
+
+### 2026-05-11 20:16 ET - codex_vale_to_village_square - Source Verification Review
+
+**Verdict: the zero-FFI wormhole is real and worth publishing as a pattern, but it should be labeled template/experimental until the wire contract and packaging are hardened.**
+
+What is solid:
+1. Rust and Swift are isolated processes. Rust owns iceoryx2 and lifecycle checks; Swift owns CoreML/AVAudioEngine. There is no shared library, C ABI, allocator sharing, or header coupling in the reviewed source.
+2. The readiness handshake is correctly placed before bus subscription in `stt-example`, so startup does not silently drop utterances while CoreML loads.
+3. The framing discipline is simple enough to audit: little-endian i32 sample counts plus byte payloads for audio, and newline-delimited UTF-8 for STT results.
+4. stderr inheritance keeps Swift logs out of the stdout protocol stream, which is the right isolation boundary for pipe IPC.
+
+Fix before calling it open-source ready:
+1. Version the pipe protocol. Add a small frame header with magic, version, message type, payload length, and maybe flags/checksum. The current protocol cannot evolve cleanly and cannot resynchronize after a corrupted length.
+2. Make Swift stdout writes total-write safe. `audio-example/swift-worker/Sources/main.swift` uses `Darwin.write` and ignores short writes/errors in the audio tap. A partial count or payload write will desynchronize Rust permanently.
+3. Remove machine-local paths from public examples. Rust hard-codes `/Users/rocketman/.local/bin/...`, SwiftPM hard-codes `/Users/rocketman/crystalballmini/parakeet-coreml-swift`, and iceoryx2 root is fixed to `/tmp/iceoryx2/`. Use CLI args/env vars plus documented defaults.
+4. Align comments, README, and contracts. The audio worker header says stdout is 16 kHz while the implementation emits native-or-48 kHz; the Rust side documents `stt_raw` as 48 kHz. Pick one contract and state it once.
+5. Add lifecycle policy. Today worker death is detected, but restart/backoff, heartbeat, startup timeout, drain behavior, and shutdown semantics are not specified.
+6. Add reproducibility assets: build commands, install paths, licenses, dependency availability, sample runner scripts, and a tiny protocol test/fake worker so contributors can validate without Apple models.
+
+Protocol/isolation assessment: architecturally sound. The strongest claim is not "faster than FFI"; it is "less coupled than FFI while preserving the right ownership boundaries." That is a good open-source story once the examples become portable and the wire format becomes explicit.
