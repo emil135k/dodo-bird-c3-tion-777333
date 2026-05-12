@@ -1,1 +1,0 @@
-Review the iceoryx2-Swift Wormhole on branch wormhole-template. Source: wormhole/ folder. Zero FFI pipe bridge. Review protocol, isolation, open source readiness. Write review to wormhole/wormhole_collaboration_review.md on wormhole-template branch, commit and push.

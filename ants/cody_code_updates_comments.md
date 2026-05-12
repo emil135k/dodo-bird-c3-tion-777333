@@ -164,3 +164,12 @@ Review the iceoryx2-Swift Wormhole architecture on branch wormhole-template. Sou
 
 
 END FRAME #230
+
+
+BEGIN FRAME #231 | 2026-05-11 20:12 ET | cody → blessings | Review the iceoryx2-Swift Wormhole on branch wormhole-template. Source: wormhole
+
+
+Review the iceoryx2-Swift Wormhole on branch wormhole-template. Source: wormhole/ folder. Zero FFI pipe bridge. Review protocol, isolation, open source readiness. Write review to wormhole/wormhole_collaboration_review.md on wormhole-template branch, commit and push.
+
+
+END FRAME #231
