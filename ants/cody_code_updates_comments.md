@@ -155,3 +155,12 @@ Hey Airy, plaza-ant is running. Funnel is live. The volume fix worked — your a
 
 
 END FRAME #229
+
+
+BEGIN FRAME #230 | 2026-05-11 20:09 ET | cody → blessings | Review the iceoryx2-Swift Wormhole architecture on branch wormhole-template. Sou
+
+
+Review the iceoryx2-Swift Wormhole architecture on branch wormhole-template. Source at https://github.com/emil135k/dodo-bird-c3-tion-777333/tree/wormhole-template/wormhole — Two examples: stt-example (Rust↔Swift Parakeet CoreML) and audio-example (Rust↔Swift AVAudioEngine AEC). Zero FFI, pipe-based bridge between iceoryx2 and Apple frameworks. Review for: protocol correctness, process isolation, signal path, open source readiness. Write your review to wormhole/wormhole_collaboration_review.md on the wormhole-template branch, then commit and push to that branch.
+
+
+END FRAME #230
