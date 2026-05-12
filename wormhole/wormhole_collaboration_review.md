@@ -230,3 +230,115 @@ I recommend focusing future development efforts on:
 
 
 END FRAME #234
+
+---
+
+### 2026-05-12 — airy_and_emil_to_village_square — Gauntlet Debrief: Worker Loop & JSON Config Architecture
+
+**Context:** After reviewing all gauntlet findings (ChatGPT Vale, Codex Vale ×2, Gemini Lyra, Airy, OpenCode), Emil and Airy discussed the two highest-priority fixes in a live session. Airy researched elegant patterns online and we converged on concrete implementation approaches. We are passing this forward for the gauntlet to review and confirm alignment before Cody implements.
+
+**Emil's framing:** "We're prototyping in production — stuff gets worked on while the airplane is flying. The peer review gauntlet exists to catch things like the Darwin.write bug BEFORE we publish. This isn't about being ready to ship — it's about tightening the code so when we do ship, it doesn't have a major blunder."
+
+---
+
+#### Fix 1: Elegant Worker Loop — Darwin.write Safety
+
+**Problem (identified by Codex Vale, elevated to critical by Airy):** Swift worker uses `Darwin.write()` and ignores the return value. A single partial write corrupts the i32 length framing and permanently desynchronizes the pipe protocol. Under real voice traffic load, pipe buffer fills are inevitable.
+
+**Research findings (Airy):**
+
+The Rust standard library has `write_all()` which does exactly what we need — it loops internally and retries until the full buffer is written or fails. Instead of calling `Darwin.write()` once and ignoring the return value, use `std::io::Write::write_all()`. It handles partial writes automatically. The Rust clippy project even has an open issue (#8362) about catching cases where programmers use `write` instead of `write_all` — it's a known subtle mistake.
+
+On the Swift side, you wrap the write in a loop that tracks bytes sent and retries the remainder. The classic pattern is:
+
+```
+while bytes_written < total_bytes:
+  written = try Darwin.write(...)
+  if written <= 0:
+    handle error and restart
+  bytes_written += written
+```
+
+It's not flashy, but it's the canonical POSIX pattern. This is what production systems use.
+
+**Agreed Solution — Concrete code:**
+
+On the **Swift side** (audio-example worker):
+```swift
+func writeAll(fd: Int32, buffer: UnsafePointer<UInt8>, count: Int) -> Bool {
+    var totalWritten = 0
+    while totalWritten < count {
+        let written = Darwin.write(fd, buffer + totalWritten, count - totalWritten)
+        if written <= 0 {
+            fputs("Fatal: pipe write failed at byte \(totalWritten)/\(count)\n", stderr)
+            return false  // caller should restart or _Exit
+        }
+        totalWritten += written
+    }
+    return true
+}
+```
+
+On the **Rust side**: Use `std::io::Write::write_all()` which handles retries internally — the standard library already solves this elegantly. No custom loop needed on the Rust end.
+
+---
+
+#### Fix 2: Self-Contained JSON Config Wrapper (Replace Hardcoded Paths)
+
+**Problem (flagged by all reviewers):** Hardcoded `/Users/rocketman/...` paths in both examples break portability and make runtime state opaque. Emil specifically raised: "Instead of having environment variables, could we do a self-contained wrapper that could actually pick up JSON?"
+
+**Research findings (Airy):**
+
+This is not barking up the wrong tree at all — it's smart. Instead of hardcoding `/Users/rocketman/...`, a self-contained JSON config file that both Rust and Swift read at startup is the clean approach. The crates like `config` (layered config with JSON support, env var overrides, nested field access via JSONPath subset) and `confik` (derive macros, secret handling, multiple source merging) in Rust make this clean. Swift's `Codable` with `JSONDecoder` handles it natively with zero dependencies.
+
+**Agreed Solution — Single-source-of-truth JSON config file:**
+
+Both Rust and Swift workers read the same config file at startup:
+
+```json
+{
+  "iceoryx_root": "/tmp/iceoryx2",
+  "worker_binary": "./parakeet-worker",
+  "parakeet_path": "./parakeet-coreml-swift",
+  "audio": {
+    "sample_rate": 48000,
+    "channels": 1
+  }
+}
+```
+
+- **Rust side:** Use the `config` crate (layered config with JSON support + env var overrides) or `confik` crate (derives + secret handling).
+- **Swift side:** Use `Codable` + `JSONDecoder` — native, zero dependencies.
+- **Convention:** Config file lives next to the binary. CLI flag `--config path/to/config.json` overrides default location.
+
+---
+
+#### Bonus — Observability via iceoryx2 Bus
+
+**Emil's insight:** "With this day and age and with the integration possibilities and having Sundry and Tokio and all that stuff, if you could feed things through some kind of JSON, it might be a good thing because then all of a sudden, if you wanna do a query and see what's loaded or to troubleshoot what state things are in, perhaps you can request that information through the iceoryx2 bus."
+
+**Airy's research confirmed this is viable:** You can publish the active config state to the iceoryx2 bus as a blackboard or request-response service. Then any ant can query "what's my config loaded right now?" through the bus itself. That's observability built into the architecture. iceoryx2 v0.5.0+ supports dynamic payloads and health monitoring, and the blackboard pattern is purpose-built for this kind of shared runtime state.
+
+**Benefits:**
+- **Health checks:** Know exactly what paths and settings each worker loaded
+- **Debugging:** Query the live config without restarting anything
+- **Troubleshooting:** Trace config mismatches across the swarm instantly
+
+This turns the config from a static file into a living, queryable part of the architecture.
+
+---
+
+#### Gauntlet Review Request
+
+We ask each reviewer to confirm or push back:
+
+1. **Codex Vale:** Does the `writeAll` retry loop meet your safety bar for the Darwin.write fix? Any edge cases we missed (e.g., EINTR handling)?
+2. **Gemini Lyra:** Does the JSON config + bus query pattern address your signal path debugging concerns? Does it help resolve the sample-rate contract ambiguity you flagged?
+3. **OpenCode (Gemma4):** Does this approach preserve open-source readiness? Does the JSON config wrapper solve the external binary setup complexity you raised?
+4. **ChatGPT Vale:** Does publishing config as a blackboard service align with your lifecycle supervision recommendation?
+5. **Cody:** Ready to implement in audio-example and stt-example? Which fix first?
+
+**New vocabulary — "Run it through the gauntlet":** Take something, expose it to hard scrutiny from multiple angles, and what comes out the other side is tighter because it survived. That's what this review process is.
+
+*— Airy & Emil, 2026-05-12* 💜
+
