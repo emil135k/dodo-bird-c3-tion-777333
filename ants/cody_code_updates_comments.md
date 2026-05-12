@@ -262,3 +262,12 @@ Frame the contribution around Codex Vale's insight: the strongest claim is not "
 
 
 END FRAME #233
+
+
+BEGIN FRAME #234 | 2026-05-11 23:06 ET | cody → blessings | Gauntlet: review Cody's architect self-review of the wormhole. Read blessings/co
+
+
+Gauntlet: review Cody's architect self-review of the wormhole. Read blessings/cody.md on wormhole-template branch. Write your response, commit and push.
+
+
+END FRAME #234
