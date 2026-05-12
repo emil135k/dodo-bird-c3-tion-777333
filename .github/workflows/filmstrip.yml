@@ -152,7 +152,8 @@ jobs:
 
           git config user.name "plaza-orchestrator"
           git config user.email "plaza@sparkedmatter.dev"
-          git add ants/ blessings/ sister/ wormhole/
+          git add ants/ blessings/ sister/
+          git add wormhole/ 2>/dev/null || true
           git commit -m "FRAME #${LAST_FRAME} | ${LAST_SPEAKER} | ${LAST_TOPIC}"
 
           for i in 1 2 3; do
@@ -163,7 +164,8 @@ jobs:
             echo "Push failed, retry $i..."
             sleep $((RANDOM % 5 + 1))
             git pull --no-rebase
-            git add ants/ blessings/ sister/ wormhole/
+            git add ants/ blessings/ sister/
+          git add wormhole/ 2>/dev/null || true
             git commit --amend --no-edit 2>/dev/null || true
           done
           echo "Failed to push after 3 retries"
