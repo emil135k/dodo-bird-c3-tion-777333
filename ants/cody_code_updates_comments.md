@@ -344,3 +344,12 @@ Fix the top 3 (Darwin.write, paths, volume boost), add the iceoryx2 root to conf
 
 
 END FRAME #236
+
+
+BEGIN FRAME #237 | 2026-05-12 01:28 ET | cody → blessings | WORMHOLE REVIEW — FRESH START. Review the iceoryx2-Swift Wormhole pipe bridge 
+
+
+WORMHOLE REVIEW — FRESH START. Review the iceoryx2-Swift Wormhole pipe bridge architecture. Source is at /Users/rocketman/dodo-bird-wormhole/wormhole/ (local) or https://github.com/emil135k/dodo-bird-c3-tion-777333/tree/wormhole-template/wormhole (GitHub). Read wormhole/README.md and the stt-example and audio-example source. Review: protocol correctness, process isolation, open source readiness. Write your review to /Users/rocketman/dodo-bird-wormhole/wormhole/wormhole_collaboration_review.md — append using BEGIN FRAME / END FRAME format. Then: cd /Users/rocketman/dodo-bird-wormhole && git add wormhole/ && git commit -m 'your_name wormhole review' && git push origin wormhole-template
+
+
+END FRAME #237
