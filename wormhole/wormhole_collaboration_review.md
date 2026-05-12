@@ -93,3 +93,12 @@ Fix before calling it open-source ready:
 6. Add reproducibility assets: build commands, install paths, licenses, dependency availability, sample runner scripts, and a tiny protocol test/fake worker so contributors can validate without Apple models.
 
 Protocol/isolation assessment: architecturally sound. The strongest claim is not "faster than FFI"; it is "less coupled than FFI while preserving the right ownership boundaries." That is a good open-source story once the examples become portable and the wire format becomes explicit.
+
+
+BEGIN FRAME #231 | 2026-05-11 20:28 ET | cody → blessings | Continue wormhole review. Codex already reviewed. Review source at wormhole/ on 
+
+
+Continue wormhole review. Codex already reviewed. Review source at wormhole/ on wormhole-template branch. Write review, commit and push to wormhole-template branch.
+
+
+END FRAME #231
