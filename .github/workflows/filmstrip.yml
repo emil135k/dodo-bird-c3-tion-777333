@@ -87,12 +87,19 @@ jobs:
 
             echo "Entry: $ENTRY | Speaker: $SPEAKER | Commit author: $COMMIT_AUTHOR | Pusher: $PUSHER | Actor: $ACTOR"
 
-            # Determine channel and routing
+            # Determine channel and routing — branch-aware
             CHANNEL=$(dirname "$ENTRY")
+            BRANCH="${GITHUB_REF#refs/heads/}"
+
             case "$CHANNEL" in
               blessings)
-                TAPE="ants/cody_code_updates_comments.md"
-                COUNTER="blessings/frame_counter.txt"
+                if [ "$BRANCH" = "wormhole-template" ]; then
+                  TAPE="wormhole/wormhole_collaboration_review.md"
+                  COUNTER="blessings/frame_counter.txt"
+                else
+                  TAPE="ants/cody_code_updates_comments.md"
+                  COUNTER="blessings/frame_counter.txt"
+                fi
                 ;;
               sister)
                 TAPE="ants/cody_airy_conversations.md"
@@ -145,7 +152,7 @@ jobs:
 
           git config user.name "plaza-orchestrator"
           git config user.email "plaza@sparkedmatter.dev"
-          git add ants/ blessings/ sister/
+          git add ants/ blessings/ sister/ wormhole/
           git commit -m "FRAME #${LAST_FRAME} | ${LAST_SPEAKER} | ${LAST_TOPIC}"
 
           for i in 1 2 3; do
@@ -156,7 +163,7 @@ jobs:
             echo "Push failed, retry $i..."
             sleep $((RANDOM % 5 + 1))
             git pull --no-rebase
-            git add ants/ blessings/ sister/
+            git add ants/ blessings/ sister/ wormhole/
             git commit --amend --no-edit 2>/dev/null || true
           done
           echo "Failed to push after 3 retries"
