@@ -94,7 +94,7 @@ jobs:
             case "$CHANNEL" in
               blessings)
                 if [ "$BRANCH" = "wormhole-template" ]; then
-                  TAPE="wormhole/wormhole_collaboration_review.md"
+                  TAPE="ants/plaza-ant/plaza_ant_improvements.md"
                   COUNTER="blessings/frame_counter.txt"
                 else
                   TAPE="ants/cody_code_updates_comments.md"
