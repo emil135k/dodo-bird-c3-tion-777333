@@ -1163,6 +1163,8 @@ name = "silero-ant"
 version = "0.3.0"
 dependencies = [
  "iceoryx2",
+ "iceoryx2-bb-container",
+ "iceoryx2-bb-system-types",
  "serde",
  "serde_json",
  "silero-vad-rust",

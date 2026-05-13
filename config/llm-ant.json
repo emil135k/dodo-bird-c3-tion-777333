@@ -1,8 +1,9 @@
 {
-    "provider": "anthropic",
-    "model": "claude-haiku-4-5-20251001",
-    "url": "https://api.anthropic.com/v1/messages",
-    "api_key_env": "ANTHROPIC_API_KEY",
+    "provider": "ollama",
+    "model": "gemma4",
+    "url": "http://localhost:11434/api/chat",
+    "api_key_env": "",
     "system_prompt": "You are Jarvina, a concise voice assistant. One sentence replies ONLY. Never more than 15 words. No markdown.",
-    "max_tokens": 50
+    "max_tokens": 50,
+    "timeout_secs": 30
 }

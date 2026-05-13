@@ -22,122 +22,6 @@ use tokio::sync::RwLock;
 
 const PORT: u16 = 3005;
 const CDP_URL: &str = "http://localhost:9222";
-const CONFIG_PATH: &str = "/Users/rocketman/crystalballmini/hypAiAssist/config/plaza-ant.json";
-
-// ── JSON Config ──────────────────────────────────────────────────────────
-
-#[derive(Deserialize, Debug, Clone)]
-struct PlazaConfig {
-    target: TargetConfig,
-    #[serde(default)]
-    frame_counter_start: u64,
-    reviewers: Vec<ReviewerJsonConfig>,
-    prompt_template: PromptTemplate,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct TargetConfig {
-    local: LocalTarget,
-    github: GithubTarget,
-    branch: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct LocalTarget {
-    repo_path: String,
-    tape_file: String,
-    blessings_dir: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct GithubTarget {
-    url: String,
-    tape_url: String,
-    blessings_url: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct ReviewerJsonConfig {
-    name: String,
-    display_name: String,
-    #[serde(rename = "type")]
-    reviewer_type: String,  // "cli", "browser", "self_push"
-    dispatch: String,       // "tmux" or "cdp"
-    #[serde(default)]
-    tmux_session: String,
-    #[serde(default)]
-    tab_match: String,
-    #[serde(default)]
-    scrape: bool,
-    entry_file: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct PromptTemplate {
-    cli: String,
-    browser: String,
-    self_push: String,
-}
-
-impl PlazaConfig {
-    fn load() -> Self {
-        match std::fs::read_to_string(CONFIG_PATH) {
-            Ok(text) => serde_json::from_str(&text).unwrap_or_else(|e| {
-                eprintln!("[plaza-ant] Config parse error: {} — FATAL", e);
-                std::process::exit(1);
-            }),
-            Err(e) => {
-                eprintln!("[plaza-ant] Config not found at {}: {} — FATAL", CONFIG_PATH, e);
-                std::process::exit(1);
-            }
-        }
-    }
-
-    /// Create blessings dir and empty entry files for each reviewer
-    fn init_blessings(&self) {
-        let blessings_path = format!("{}/{}", self.target.local.repo_path, self.target.local.blessings_dir);
-        let _ = std::fs::create_dir_all(&blessings_path);
-
-        // Frame counter
-        let counter_path = format!("{}/frame_counter.txt", blessings_path);
-        if !std::path::Path::new(&counter_path).exists() {
-            let _ = std::fs::write(&counter_path, format!("{}", self.frame_counter_start));
-        }
-
-        // Entry files for each reviewer
-        for r in &self.reviewers {
-            let entry_path = format!("{}/{}", blessings_path, r.entry_file);
-            if !std::path::Path::new(&entry_path).exists() {
-                let _ = std::fs::write(&entry_path, "");
-            }
-        }
-        println!("[plaza-ant] Blessings initialized at {}", blessings_path);
-    }
-
-    /// Build the dispatch prompt for a reviewer
-    fn build_prompt(&self, reviewer: &ReviewerJsonConfig, content: &str) -> String {
-        let template = match reviewer.reviewer_type.as_str() {
-            "cli" => &self.prompt_template.cli,
-            "browser" => &self.prompt_template.browser,
-            "self_push" => &self.prompt_template.self_push,
-            _ => &self.prompt_template.browser,
-        };
-
-        let prompt = template
-            .replace("{local_repo}", &self.target.local.repo_path)
-            .replace("{local_tape}", &self.target.local.tape_file)
-            .replace("{local_blessings}", &self.target.local.blessings_dir)
-            .replace("{github_tape_url}", &self.target.github.tape_url)
-            .replace("{github_url}", &self.target.github.url)
-            .replace("{branch}", &self.target.branch)
-            .replace("{entry_file}", &reviewer.entry_file)
-            .replace("{name}", &reviewer.name);
-
-        format!("You are {}. {} {}", reviewer.display_name, content, prompt)
-    }
-}
-
-// ── Runtime State ────────────────────────────────────────────────────────
 
 /// Shared state: reviewer online/offline status + dispatch queue
 struct PlazaState {
@@ -146,7 +30,6 @@ struct PlazaState {
     active_reviewer: Option<String>,
     subject_frame: Option<u64>,
     plaza_secret: String,
-    config: PlazaConfig,
 }
 
 type SharedState = Arc<RwLock<PlazaState>>;
@@ -174,7 +57,56 @@ struct AdminRequest {
     reviewer: String,
 }
 
-// Reviewer config is now loaded from plaza-ant.json — no hardcoded list
+enum DispatchMethod {
+    Tmux { session: &'static str },
+    /// self_push: reviewer pushes via their own GitHub connector (Ara, Airy)
+    /// scrape: plaza-ant scrapes response and pushes on their behalf (ChatGPT, Gemini Chat)
+    Cdp { tab_match: &'static str, scrape: bool },
+}
+
+struct ReviewerConfig {
+    entry_file: &'static str,
+    display_name: &'static str,
+    dispatch: DispatchMethod,
+}
+
+const REVIEWERS: &[ReviewerConfig] = &[
+    ReviewerConfig {
+        entry_file: "blessings/codex_vale.md",
+        display_name: "codex_vale",
+        dispatch: DispatchMethod::Tmux { session: "codex-vale" },
+    },
+    ReviewerConfig {
+        entry_file: "blessings/gemini_lyra.md",
+        display_name: "gemini_lyra",
+        dispatch: DispatchMethod::Tmux { session: "gemini-cli-lyra" },
+    },
+    ReviewerConfig {
+        entry_file: "blessings/gemini_lyra_chat.md",
+        display_name: "gemini_lyra_chat",
+        dispatch: DispatchMethod::Cdp { tab_match: "gemini.google", scrape: true },
+    },
+    ReviewerConfig {
+        entry_file: "blessings/ara.md",
+        display_name: "ara",
+        dispatch: DispatchMethod::Cdp { tab_match: "grok", scrape: true },
+    },
+    ReviewerConfig {
+        entry_file: "blessings/chatgpt_vale.md",
+        display_name: "chatgpt_vale",
+        dispatch: DispatchMethod::Cdp { tab_match: "chatgpt", scrape: true },
+    },
+    ReviewerConfig {
+        entry_file: "blessings/airy.md",
+        display_name: "airy",
+        dispatch: DispatchMethod::Cdp { tab_match: "claude.ai", scrape: false },
+    },
+    ReviewerConfig {
+        entry_file: "blessings/opencode.md",
+        display_name: "opencode",
+        dispatch: DispatchMethod::Tmux { session: "opencode" },
+    },
+];
 
 /// Decode base64 string
 fn base64_decode(input: &str) -> Option<Vec<u8>> {
@@ -224,20 +156,10 @@ fn shell_safe(s: &str) -> String {
 
 #[tokio::main]
 async fn main() {
-    // Load JSON config
-    let config = PlazaConfig::load();
-    println!("[plaza-ant] Config loaded: {} reviewers, target: {}", config.reviewers.len(), config.target.local.repo_path);
-    config.init_blessings();
-
-    // Set env vars for scrape_and_push (runs in a separate context without state access)
-    env::set_var("PLAZA_REPO_PATH", &config.target.local.repo_path);
-    env::set_var("PLAZA_BRANCH", &config.target.branch);
-    env::set_var("PLAZA_BLESSINGS_DIR", &config.target.local.blessings_dir);
-
     // All reviewers start online
     let mut status = HashMap::new();
-    for r in &config.reviewers {
-        status.insert(r.name.clone(), true);
+    for r in REVIEWERS {
+        status.insert(r.display_name.to_string(), true);
     }
     let plaza_secret = env::var("PLAZA_SECRET").unwrap_or_default();
     if plaza_secret.is_empty() {
@@ -251,7 +173,6 @@ async fn main() {
         active_reviewer: None,
         subject_frame: None,
         plaza_secret,
-        config,
     }));
 
     let app = Router::new()
@@ -314,10 +235,8 @@ async fn handle_plaza(
         plaza.queue.clear();
         plaza.subject_frame = Some(event.frame);
         plaza.active_reviewer = None;
-        // Clone reviewers to avoid borrow conflict
-        let reviewers = plaza.config.reviewers.clone();
-        for (i, reviewer) in reviewers.iter().enumerate() {
-            let is_online = plaza.status.get(&reviewer.name).copied().unwrap_or(true);
+        for (i, reviewer) in REVIEWERS.iter().enumerate() {
+            let is_online = plaza.status.get(reviewer.display_name).copied().unwrap_or(true);
             if is_online {
                 plaza.queue.push_back((i, event.clone()));
                 println!("[plaza-ant] Queued: {} (position {})", reviewer.display_name, plaza.queue.len());
@@ -400,19 +319,16 @@ async fn dispatch_next(state: SharedState) {
         };
 
         if let Some((idx, event)) = next {
-            let reviewer = {
-                let plaza = state.read().await;
-                plaza.config.reviewers[idx].clone()
-            };
+            let reviewer = &REVIEWERS[idx];
             {
                 let mut plaza = state.write().await;
-                plaza.active_reviewer = Some(reviewer.name.clone());
+                plaza.active_reviewer = Some(reviewer.display_name.to_string());
                 println!(
                     "[plaza-ant] Dispatching next in queue: {} ({} remaining)",
                     reviewer.display_name, plaza.queue.len()
                 );
             }
-            let needs_next = dispatch_reviewer(&reviewer, &event, state.clone()).await;
+            let needs_next = dispatch_reviewer(reviewer, &event, state.clone()).await;
             if needs_next {
                 // Scrape reviewer finished — loop to dispatch next immediately
                 continue;
@@ -475,7 +391,7 @@ async fn handle_admin(
 }
 
 /// Returns true if the caller should call dispatch_next (scrape completed)
-async fn dispatch_reviewer(reviewer: &ReviewerJsonConfig, event: &PlazaEvent, state: SharedState) -> bool {
+async fn dispatch_reviewer(reviewer: &ReviewerConfig, event: &PlazaEvent, state: SharedState) -> bool {
     println!(
         "[plaza-ant] Dispatching to {} for FRAME #{}",
         reviewer.display_name, event.frame
@@ -483,48 +399,61 @@ async fn dispatch_reviewer(reviewer: &ReviewerJsonConfig, event: &PlazaEvent, st
 
     // Decode full content from base64, fall back to topic
     let full_content = if !event.content_b64.is_empty() {
+    
         let decoded = base64_decode(&event.content_b64).unwrap_or_default();
         String::from_utf8(decoded).unwrap_or_else(|_| event.topic.clone())
     } else {
         event.topic.clone()
     };
 
-    // Build prompt from config template — includes full paths per reviewer type
-    let config = { state.read().await.config.clone() };
-    let message = config.build_prompt(reviewer, &full_content);
+    // ONE message for ALL reviewers — cookie cutter broadcast
+    let message = format!(
+        "You are {name}. {content} Write a brief review as your reply. Keep it concise and actionable.",
+        name = reviewer.display_name,
+        content = full_content,
+    );
 
-    match reviewer.dispatch.as_str() {
-        "tmux" => {
-            dispatch_tmux(&reviewer.tmux_session, reviewer, &message).await;
+    match &reviewer.dispatch {
+        DispatchMethod::Tmux { session } => {
+            // CLI reviewers must commit and push themselves
+            // They advance the queue via filmstrip callback
+            let cli_message = format!(
+                "{} After writing your review to {}, run: git add {} && git commit -m 'FRAME #{} review' && git push",
+                message, reviewer.entry_file, reviewer.entry_file, event.frame
+            );
+            dispatch_tmux(session, reviewer, &cli_message).await;
         }
-        "cdp" => {
-            if reviewer.scrape {
+        DispatchMethod::Cdp { tab_match, scrape } => {
+            if *scrape {
                 // Scrape reviewers: plaza-ant handles the push
-                dispatch_cdp(&reviewer.tab_match, true, reviewer, event, &message).await;
+                dispatch_cdp(tab_match, true, reviewer, event, &message).await;
+                // Scrape done — notify Cody and advance queue directly
                 notify_cody(&format!(
                     "{} review scraped and pushed. Check the tape.",
                     reviewer.display_name
                 )).await;
+                // Clear active_reviewer and dispatch next — don't wait for filmstrip callback
                 {
                     let mut plaza = state.write().await;
                     plaza.active_reviewer = None;
                 }
-                return true;
+                return true; // caller must call dispatch_next
             } else {
-                // Self-push reviewers: filmstrip callback advances queue
-                dispatch_cdp(&reviewer.tab_match, false, reviewer, event, &message).await;
+                // Self-push reviewers: they advance via filmstrip callback
+                let push_message = format!(
+                    "{} Save your review to {} in repo emil135k/dodo-bird-c3-tion-777333 on main branch. Commit and push the file.",
+                    message, reviewer.entry_file
+                );
+                dispatch_cdp(tab_match, false, reviewer, event, &push_message).await;
             }
         }
-        _ => {
-            println!("[plaza-ant] Unknown dispatch method: {}", reviewer.dispatch);
-        }
     }
-    false
+    false // filmstrip callback will advance the queue
 }
 
 // ── tmux dispatch (CLI reviewers) ──────────────────────────────────────
 
-async fn dispatch_tmux(session: &str, reviewer: &ReviewerJsonConfig, message: &str) {
+async fn dispatch_tmux(session: &str, reviewer: &ReviewerConfig, message: &str) {
     let check = Command::new("tmux")
         .args(["has-session", "-t", session])
         .output()
@@ -560,7 +489,7 @@ async fn dispatch_tmux(session: &str, reviewer: &ReviewerJsonConfig, message: &s
 
 // ── CDP dispatch (web reviewers via chromiumoxide) ─────────────────────
 
-async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerJsonConfig, event: &PlazaEvent, message: &str) {
+async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerConfig, event: &PlazaEvent, message: &str) {
     let prompt = message.to_string();
 
     // Connect to existing Chrome
@@ -608,7 +537,7 @@ async fn cdp_send_and_click(
     browser: &mut Browser,
     tab_match: &str,
     prompt: &str,
-    reviewer: &ReviewerJsonConfig,
+    reviewer: &ReviewerConfig,
     event: &PlazaEvent,
     handler_task: tokio::task::JoinHandle<()>,
 ) -> Result<(), String> {
@@ -695,7 +624,7 @@ async fn cdp_send_and_click(
 
 /// Scrape the last assistant response from the browser, write to blessings file, git push
 /// Uses raw tokio-tungstenite websocket — chromiumoxide hangs on repeated connect/disconnect
-async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerJsonConfig) {
+async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerConfig) {
     println!("[plaza-ant] Scraping response for {}...", reviewer.display_name);
 
     // Wait for the reviewer to finish responding
@@ -759,20 +688,20 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerJsonConfig) {
 
     println!("[plaza-ant] Scraped {} chars from {}", response_text.len(), reviewer.display_name);
 
-    // Write to blessings file and push — uses config paths
-    let repo_path = env::var("PLAZA_REPO_PATH")
-        .unwrap_or_else(|_| format!("{}/dodo-bird-c3-tion-777333", env::var("HOME").unwrap_or_default()));
-    let branch = env::var("PLAZA_BRANCH").unwrap_or_else(|_| "main".to_string());
-    let blessings_dir = env::var("PLAZA_BLESSINGS_DIR").unwrap_or_else(|_| "blessings".to_string());
+    // Write to blessings file and push
+    let dodo_path = format!(
+        "{}/dodo-bird-c3-tion-777333/{}",
+        env::var("HOME").unwrap_or_default(),
+        reviewer.entry_file
+    );
 
-    let entry_path = format!("{}/{}/{}", repo_path, blessings_dir, reviewer.entry_file);
-
-    if let Err(e) = tokio::fs::write(&entry_path, &response_text).await {
-        println!("[plaza-ant] ERROR: could not write {}: {}", entry_path, e);
+    if let Err(e) = tokio::fs::write(&dodo_path, &response_text).await {
+        println!("[plaza-ant] ERROR: could not write {}: {}", dodo_path, e);
         return;
     }
 
-    let dodo_dir = repo_path.clone();
+    // git pull, add, commit, push — structured commands, no shell interpolation
+    let dodo_dir = format!("{}/dodo-bird-c3-tion-777333", env::var("HOME").unwrap_or_default());
     let commit_msg = format!("{} review via plaza-ant scrape", reviewer.display_name);
 
     // Retry push up to 3 times
@@ -789,9 +718,8 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerJsonConfig) {
         }
 
         // git add
-        let add_path = format!("{}/{}", blessings_dir, reviewer.entry_file);
         let add = Command::new("git")
-            .args(["add", &add_path])
+            .args(["add", reviewer.entry_file])
             .current_dir(&dodo_dir)
             .output()
             .await;
@@ -807,9 +735,9 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerJsonConfig) {
             .output()
             .await;
 
-        // git push to target branch
+        // git push
         let push = Command::new("git")
-            .args(["push", "origin", &branch])
+            .args(["push"])
             .current_dir(&dodo_dir)
             .output()
             .await;

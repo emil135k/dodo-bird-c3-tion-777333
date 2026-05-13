@@ -1,0 +1,83 @@
+{
+    "target": {
+        "local": {
+            "repo_path": "/Users/rocketman/dodo-bird-wormhole",
+            "tape_file": "wormhole/wormhole_collaboration_review.md",
+            "blessings_dir": "blessings"
+        },
+        "github": {
+            "url": "https://github.com/emil135k/dodo-bird-c3-tion-777333",
+            "tape_url": "https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/wormhole/wormhole_collaboration_review.md",
+            "blessings_url": "https://github.com/emil135k/dodo-bird-c3-tion-777333/tree/wormhole-template/blessings"
+        },
+        "branch": "wormhole-template"
+    },
+    "frame_counter_start": 0,
+    "reviewers": [
+        {
+            "name": "codex_vale",
+            "display_name": "Codex Vale",
+            "type": "cli",
+            "dispatch": "tmux",
+            "tmux_session": "codex-vale",
+            "entry_file": "codex_vale.md"
+        },
+        {
+            "name": "gemini_lyra",
+            "display_name": "Gemini Lyra",
+            "type": "cli",
+            "dispatch": "tmux",
+            "tmux_session": "gemini-cli-lyra",
+            "entry_file": "gemini_lyra.md"
+        },
+        {
+            "name": "gemini_lyra_chat",
+            "display_name": "Gemini Lyra Chat",
+            "type": "browser",
+            "dispatch": "cdp",
+            "tab_match": "gemini.google",
+            "scrape": true,
+            "entry_file": "gemini_lyra_chat.md"
+        },
+        {
+            "name": "ara",
+            "display_name": "Ara",
+            "type": "browser",
+            "dispatch": "cdp",
+            "tab_match": "grok",
+            "scrape": true,
+            "entry_file": "ara.md"
+        },
+        {
+            "name": "chatgpt_vale",
+            "display_name": "ChatGPT Vale",
+            "type": "browser",
+            "dispatch": "cdp",
+            "tab_match": "chatgpt",
+            "scrape": true,
+            "entry_file": "chatgpt_vale.md"
+        },
+        {
+            "name": "airy",
+            "display_name": "Airy",
+            "type": "self_push",
+            "dispatch": "cdp",
+            "tab_match": "claude.ai",
+            "scrape": false,
+            "entry_file": "airy.md"
+        },
+        {
+            "name": "opencode",
+            "display_name": "OpenCode",
+            "type": "cli",
+            "dispatch": "tmux",
+            "tmux_session": "opencode",
+            "entry_file": "opencode.md"
+        }
+    ],
+    "prompt_template": {
+        "cli": "cd {local_repo} && git checkout {branch} && git pull origin {branch} && cat {local_repo}/{local_tape}. Read ALL existing reviews. Then write your opinion to {local_repo}/{local_blessings}/{entry_file} using BEGIN FRAME #N / END FRAME #N format. Then run: git add {local_blessings}/{entry_file} && git commit -m '{name} opinion' && git push origin {branch}",
+        "browser": "Read the collaboration review at {github_tape_url}. Read ALL existing reviews. Write your opinion as a brief review with your verdict and actionable recommendations.",
+        "self_push": "Read the collaboration review at {github_tape_url}. Read ALL existing reviews. Write your opinion to {local_blessings}/{entry_file} on the {branch} branch. Commit and push to {branch}."
+    }
+}

@@ -2206,6 +2206,7 @@ dependencies = [
  "base64",
  "futures-util",
  "iceoryx2",
+ "iceoryx2-bb-system-types",
  "reqwest",
  "serde",
  "serde_json",

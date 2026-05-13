@@ -76,7 +76,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iox_active = call_active.clone();
     let iox_mark = mark_pending_main.clone();
     std::thread::spawn(move || {
-        let node = NodeBuilder::new().create::<ipc::Service>()
+        let mut iox = Config::default();
+        iox.global.set_root_path(&iceoryx2_bb_system_types::path::Path::new(b"/tmp/iceoryx2/").unwrap());
+        let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()
             .expect("iceoryx2 node");
 
         // Contract: phone_in contains raw mu-law bytes from Twilio (8kHz, u-law encoded)

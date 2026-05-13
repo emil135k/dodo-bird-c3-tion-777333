@@ -2,20 +2,20 @@
 # Start the sovereign swarm — hypAiAssist
 #
 # Usage:
-#   bash start-swarm.sh              # Local only (Blackwire mic/speaker)
+#   bash start-swarm.sh              # Local only (Blackwire mic/speaker, no LLM)
+#   bash start-swarm.sh --llm        # Local + LLM (Jarvina on the bus)
 #   bash start-swarm.sh --twilio     # Local + Twilio phone bridge
-#   bash start-swarm.sh --no-llm     # Local without LLM (testing audio chain)
-#   bash start-swarm.sh --twilio --no-llm  # Phone bridge without LLM
+#   bash start-swarm.sh --twilio --llm  # Phone bridge + LLM
 #
 # Run Ollama first: OLLAMA_CONTEXT_LENGTH=32768 ollama serve
 
 USE_TWILIO=false
-USE_LLM=true
+USE_LLM=false
 
 for arg in "$@"; do
     case $arg in
         --twilio) USE_TWILIO=true ;;
-        --no-llm) USE_LLM=false ;;
+        --llm) USE_LLM=true ;;
     esac
 done
 
@@ -64,7 +64,7 @@ if [ "$USE_LLM" = true ]; then
     llm-ant > /tmp/llm-ant-stdout.log 2>&1 &
     sleep 2
 else
-    echo "=== Skipping LLM ant (--no-llm) ==="
+    echo "=== Skipping LLM ant (use --llm to enable) ==="
 fi
 
 # --- Optional: Twilio phone bridge ---
@@ -85,11 +85,21 @@ else
     echo "=== Skipping Twilio bridge (use --twilio to enable) ==="
 fi
 
+# --- Router + Type (voice dictation) ---
+
+echo "=== Starting Router ant ==="
+router-ant > /tmp/router-ant-stdout.log 2>&1 &
+sleep 1
+
+echo "=== Starting Type ant ==="
+type-ant > /tmp/type-ant-stdout.log 2>&1 &
+sleep 1
+
 # --- Status ---
 
 echo ""
 echo "=== SWARM STATUS ==="
-ANTS="tts-ant stt-ant silero-ant patchbay-ant parakeet-worker"
+ANTS="tts-ant stt-ant silero-ant patchbay-ant parakeet-worker router-ant type-ant"
 [ "$USE_LLM" = true ] && ANTS="$ANTS llm-ant"
 [ "$USE_TWILIO" = true ] && ANTS="$ANTS digi-ant phone-silero-ant web-ant"
 

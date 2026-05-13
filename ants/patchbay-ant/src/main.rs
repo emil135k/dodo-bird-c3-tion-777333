@@ -1,247 +1,223 @@
-//! Patchbay Ant — Audio Routing with SpeexDSP AEC
+//! Patchbay Ant — Audio I/O via Swift Worker with Apple AEC
 //!
-//! Simple loop: get mic, get speaker ref, cancel echo, publish clean.
-//! No scattered callbacks. No multi-step resampling. Matched signals.
+//! Rust handles iceoryx2 bus. Swift handles audio (AVAudioEngine + Voice Processing).
+//! Connected by anonymous Unix pipes. Same pattern as stt-ant.
+//!
+//! Data flow:
+//!   tts_audio bus → Rust → pipe(stdin) → Swift(AVAudioEngine plays + AEC)
+//!   Swift(mic, echo-cancelled) → pipe(stdout) → Rust → stt_raw bus
 
 use iceoryx2::prelude::*;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use aec_rs::{Aec, AecConfig};
-use serde::Deserialize;
-use std::sync::{Arc, Mutex};
-use std::collections::VecDeque;
+use iceoryx2_bb_system_types::path::Path;
+use iceoryx2_bb_container::semantic_string::SemanticString;
 
-const CONFIG_PATH: &str = "/Users/rocketman/crystalballmini/hypAiAssist/config/patchbay-ant.json";
+use std::process::{Command, Stdio};
+use std::io::{Write, BufReader, BufRead, Read};
 
-// AEC parameters — from the guide, optimized for laptop speakers
-const SAMPLE_RATE: u32 = 16000;
-const FRAME_SIZE: usize = 320;     // 20ms at 16kHz
-const FILTER_LEN: i32 = 1024;      // ~64ms delay capacity
-
-#[derive(Deserialize, Debug)]
-struct PatchbayConfig {
-    #[serde(default = "d_input")]
-    input_device: String,
-    #[serde(default = "d_output")]
-    output_device: String,
-}
-fn d_input() -> String { "Plantronics Blackwire 3210 Series".into() }
-fn d_output() -> String { "Plantronics Blackwire 3210 Series".into() }
-impl Default for PatchbayConfig {
-    fn default() -> Self { Self { input_device: d_input(), output_device: d_output() } }
-}
-impl PatchbayConfig {
-    fn load() -> Self {
-        match std::fs::read_to_string(CONFIG_PATH) {
-            Ok(text) => serde_json::from_str(&text).unwrap_or_else(|e| {
-                eprintln!("[PATCHBAY] Config error: {} — defaults", e); Self::default()
-            }),
-            Err(_) => { eprintln!("[PATCHBAY] No config — defaults"); Self::default() }
-        }
-    }
-}
-
-fn find_device(host: &cpal::Host, name: &str, input: bool) -> Option<cpal::Device> {
-    let devices = if input { host.input_devices().ok()? } else { host.output_devices().ok()? };
-    for device in devices {
-        if let Ok(n) = device.name() {
-            if n.to_lowercase().contains(&name.to_lowercase()) {
-                return Some(device);
-            }
-        }
-    }
-    None
-}
+const WORKER_BIN: &str = "/Users/rocketman/.local/bin/patchbay-worker";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("[PATCHBAY] Starting — SpeexDSP AEC, {}Hz, frame={}, filter={}",
-        SAMPLE_RATE, FRAME_SIZE, FILTER_LEN);
-    let cfg = PatchbayConfig::load();
-    let host = cpal::default_host();
+    eprintln!("[PATCHBAY] Starting — Swift worker with Apple AEC...");
 
-    // --- DEVICES ---
-    let input_dev = find_device(&host, &cfg.input_device, true)
-        .expect(&format!("Input '{}' not found", cfg.input_device));
-    let output_dev = find_device(&host, &cfg.output_device, false)
-        .expect(&format!("Output '{}' not found", cfg.output_device));
+    // Spawn Swift worker
+    let mut child = Command::new(WORKER_BIN)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect("Failed to spawn patchbay-worker");
 
-    let in_config = input_dev.default_input_config()?;
-    let in_rate = in_config.sample_rate().0;
-    let in_channels = in_config.channels() as usize;
-    eprintln!("[PATCHBAY] Mic: {} ({}Hz, {}ch)", input_dev.name()?, in_rate, in_channels);
+    let mut worker_stdin = child.stdin.take().expect("stdin");
+    let worker_stdout = child.stdout.take().expect("stdout");
+    let mut reader = BufReader::new(worker_stdout);
 
-    let out_supported = output_dev.supported_output_configs()?
-        .next().expect("No output config");
-    let out_rate = out_supported.with_max_sample_rate().sample_rate().0;
-    let out_channels = out_supported.channels() as usize;
-    eprintln!("[PATCHBAY] Spk: {} ({}Hz, {}ch)", output_dev.name()?, out_rate, out_channels);
+    eprintln!("[PATCHBAY] Swift worker spawned (PID {})", child.id());
 
-    // --- SHARED BUFFERS ---
-    // Mic capture at native rate → main loop downsamples to 16kHz
-    let mic_buf: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(Vec::with_capacity(16000)));
-    // Speaker playback queue at native rate → output callback drains
-    let spk_queue: Arc<Mutex<VecDeque<f32>>> = Arc::new(Mutex::new(VecDeque::new()));
-    // Speaker reference at 16kHz — EXACT samples that went to speaker, downsampled
-    let spk_ref: Arc<Mutex<VecDeque<i16>>> = Arc::new(Mutex::new(VecDeque::new()));
-
-    // --- INPUT STREAM ---
-    let mic_clone = mic_buf.clone();
-    let input_stream = input_dev.build_input_stream(
-        &in_config.into(),
-        move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let mut buf = mic_clone.lock().unwrap();
-            for frame in data.chunks(in_channels) {
-                buf.push(frame.iter().sum::<f32>() / in_channels as f32);
+    // Readiness handshake
+    eprintln!("[PATCHBAY] Waiting for Swift worker...");
+    {
+        let mut ready_line = String::new();
+        match reader.read_line(&mut ready_line) {
+            Ok(0) => {
+                eprintln!("[PATCHBAY] FATAL: worker closed stdout before ready");
+                return Err("worker died during init".into());
             }
-        },
-        |err| eprintln!("[PATCHBAY] Mic error: {}", err),
-        None,
-    )?;
-    input_stream.play()?;
-
-    // --- OUTPUT STREAM ---
-    // Callback plays AND captures the exact reference at output rate
-    let spk_play = spk_queue.clone();
-    let spk_ref_out = spk_ref.clone();
-    let out_config = cpal::StreamConfig {
-        channels: out_channels as u16,
-        sample_rate: cpal::SampleRate(out_rate),
-        buffer_size: cpal::BufferSize::Default,
-    };
-    let out_rate_f = out_rate as f64;
-
-    let output_stream = output_dev.build_output_stream(
-        &out_config,
-        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-            let mut pq = spk_play.lock().unwrap();
-            let mut played: Vec<f32> = Vec::new();
-            for frame in data.chunks_mut(out_channels) {
-                let sample = pq.pop_front().unwrap_or(0.0);
-                for ch in frame.iter_mut() { *ch = sample; }
-                played.push(sample);
-            }
-            // Downsample played samples to 16kHz for AEC reference
-            if played.iter().any(|&s| s.abs() > 0.0001) {
-                let ratio = out_rate_f / SAMPLE_RATE as f64;
-                let out_len = (played.len() as f64 / ratio) as usize;
-                let mut ref_16k: Vec<i16> = Vec::with_capacity(out_len);
-                for i in 0..out_len {
-                    let src = i as f64 * ratio;
-                    let idx = src as usize;
-                    let frac = (src - idx as f64) as f32;
-                    let s0 = played[idx.min(played.len() - 1)];
-                    let s1 = played[(idx + 1).min(played.len() - 1)];
-                    ref_16k.push(((s0 + (s1 - s0) * frac) * 32767.0).clamp(-32768.0, 32767.0) as i16);
-                }
-                if let Ok(mut sr) = spk_ref_out.lock() {
-                    sr.extend(ref_16k.iter());
-                    let len = sr.len();
-                    if len > 32000 { sr.drain(..len - 32000); }
+            Ok(_) => {
+                if ready_line.trim() == "<ready>" {
+                    eprintln!("[PATCHBAY] Swift worker READY — AVAudioEngine + AEC");
+                } else {
+                    eprintln!("[PATCHBAY] FATAL: bad handshake: {:?}", ready_line.trim());
+                    return Err("bad handshake".into());
                 }
             }
-        },
-        |err| eprintln!("[PATCHBAY] Spk error: {}", err),
-        None,
-    )?;
-    output_stream.play()?;
+            Err(e) => return Err(format!("handshake error: {}", e).into()),
+        }
+    }
 
-    // --- ICEORYX2 ---
-    let node = NodeBuilder::new().create::<ipc::Service>()?;
+    // iceoryx2 — ALL ants use explicit /tmp/iceoryx2/ path
+    let mut iox = Config::default();
+    iox.global.set_root_path(&Path::new(b"/tmp/iceoryx2/").unwrap());
+    let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()?;
+
+    // Publish mic audio (echo-cancelled by Apple) to stt_raw
     let raw_svc = node.service_builder(&"stt_raw".try_into()?)
         .publish_subscribe::<[u8]>().open_or_create()?;
     let mic_pub = raw_svc.publisher_builder()
         .initial_max_slice_len(4 * 1024 * 1024).create()?;
+
+    // Subscribe to TTS audio to play through speaker
     let audio_svc = node.service_builder(&"tts_audio".try_into()?)
         .publish_subscribe::<[u8]>().open_or_create()?;
     let spk_sub = audio_svc.subscriber_builder().create()?;
 
-    // --- AEC ---
-    let aec = Aec::new(&AecConfig {
-        frame_size: FRAME_SIZE,
-        filter_length: FILTER_LEN,
-        sample_rate: SAMPLE_RATE,
-        enable_preprocess: true,
-    });
+    // Subscribe to speaker control commands (flush/pause/resume)
+    let ctl_svc = node.service_builder(&"speaker_control".try_into()?)
+        .publish_subscribe::<[u8]>().open_or_create()?;
+    let ctl_sub = ctl_svc.subscriber_builder().create()?;
 
-    eprintln!("[PATCHBAY] AEC ready. Bus: stt_raw <-> tts_audio");
+    eprintln!("[PATCHBAY] Bus: stt_raw <-> tts_audio + speaker_control — READY");
 
-    // --- MAIN LOOP (matches the guide exactly) ---
-    loop {
-        // 1. Receive TTS audio, resample to output rate, queue for playback
-        while let Some(sample) = spk_sub.receive()? {
-            let raw = sample.payload();
-            if raw.len() % 4 != 0 { continue; }
-            let samples: Vec<f32> = raw.chunks_exact(4)
+    // Reader thread: Swift worker stdout → mic audio → stt_raw bus
+    // Protocol: [i32 sample_count LE][f32 samples at 16kHz]
+    let (mic_tx, mic_rx) = std::sync::mpsc::channel::<Vec<f32>>();
+
+    std::thread::spawn(move || {
+        eprintln!("[PATCHBAY] Reader thread started, attempting first read...");
+        let mut frame_count: u64 = 0;
+        loop {
+            // Read sample count (4 bytes LE i32)
+            let mut count_buf = [0u8; 4];
+            if let Err(e) = reader.read_exact(&mut count_buf) {
+                eprintln!("[PATCHBAY] Reader error: {}", e);
+                break;
+            }
+            frame_count += 1;
+            let sample_count = i32::from_le_bytes(count_buf);
+            if frame_count <= 3 || frame_count % 500 == 0 {
+                eprintln!("[PATCHBAY] Reader frame #{}: {} samples", frame_count, sample_count);
+            }
+            if sample_count <= 0 { continue; }
+            if sample_count > 4800000 {
+                eprintln!("[PATCHBAY] FATAL: sample count {} too large", sample_count);
+                break;
+            }
+
+            // Read f32 samples
+            let byte_count = sample_count as usize * 4;
+            let mut audio_data = vec![0u8; byte_count];
+            if reader.read_exact(&mut audio_data).is_err() {
+                eprintln!("[PATCHBAY] Worker stdout read error");
+                break;
+            }
+
+            let samples: Vec<f32> = audio_data.chunks_exact(4)
                 .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
                 .collect();
+
+            let _ = mic_tx.send(samples);
+        }
+    });
+
+    // Main loop
+    loop {
+        // Check if worker is alive
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                eprintln!("[PATCHBAY] Worker exited: {}", status);
+                return Err(format!("worker died: {}", status).into());
+            }
+            Ok(None) => {}
+            Err(e) => eprintln!("[PATCHBAY] Worker check error: {}", e),
+        }
+
+        // 1. Check speaker control FIRST — flush must happen before forwarding audio
+        let mut flushed = false;
+        while let Some(sample) = ctl_sub.receive()? {
+            let payload = sample.payload();
+            if let Some(&cmd) = payload.first() {
+                let code: i32 = -(cmd as i32);
+                let names = ["-", "FLUSH", "PAUSE", "RESUME"];
+                let name = names.get(cmd as usize).unwrap_or(&"UNKNOWN");
+                eprintln!("[PATCHBAY] Speaker control: {} → pipe ({})", name, code);
+                if let Err(e) = worker_stdin.write_all(&code.to_le_bytes()) {
+                    eprintln!("[PATCHBAY] FATAL: pipe write error on control: {}", e);
+                    return Err(format!("pipe broken: {}", e).into());
+                }
+                if let Err(e) = worker_stdin.flush() {
+                    eprintln!("[PATCHBAY] FATAL: pipe flush error on control: {}", e);
+                    return Err(format!("pipe broken: {}", e).into());
+                }
+                if cmd == 0x01 { flushed = true; }
+            }
+        }
+
+        // If flushed, drain all pending tts_audio — it's stale
+        if flushed {
+            let mut drained = 0;
+            while let Some(_) = spk_sub.receive()? { drained += 1; }
+            if drained > 0 {
+                eprintln!("[PATCHBAY] Drained {} stale audio messages after FLUSH", drained);
+            }
+        }
+
+        // 2. Receive TTS audio from bus, forward to Swift worker for playback
+        while let Some(sample) = spk_sub.receive()? {
+            // Check for flush BETWEEN each audio message
+            while let Some(ctl) = ctl_sub.receive()? {
+                if let Some(&cmd) = ctl.payload().first() {
+                    if cmd == 0x01 {
+                        let flush_code: i32 = -1;
+                        let _ = worker_stdin.write_all(&flush_code.to_le_bytes());
+                        let _ = worker_stdin.flush();
+                        eprintln!("[PATCHBAY] FLUSH mid-forward → draining remaining audio");
+                        // Drain all remaining audio messages
+                        while let Some(_) = spk_sub.receive()? {}
+                        break;
+                    }
+                    let code: i32 = -(cmd as i32);
+                    let _ = worker_stdin.write_all(&code.to_le_bytes());
+                    let _ = worker_stdin.flush();
+                }
+            }
+
+            let payload = sample.payload();
+            if payload.len() < 4 { continue; }
+
+            let sample_count = (payload.len() / 4) as i32;
+
+            if let Err(e) = worker_stdin.write_all(&sample_count.to_le_bytes()) {
+                eprintln!("[PATCHBAY] FATAL: pipe write error: {}", e);
+                return Err(format!("pipe broken: {}", e).into());
+            }
+            let boosted: Vec<u8> = payload.chunks_exact(4)
+                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                .map(|s| (s * 2.0).clamp(-1.0, 1.0))
+                .flat_map(|s| s.to_le_bytes())
+                .collect();
+            if let Err(e) = worker_stdin.write_all(&boosted) {
+                eprintln!("[PATCHBAY] FATAL: pipe write error: {}", e);
+                return Err(format!("pipe broken: {}", e).into());
+            }
+            if let Err(e) = worker_stdin.flush() {
+                eprintln!("[PATCHBAY] FATAL: pipe flush error: {}", e);
+                return Err(format!("pipe broken: {}", e).into());
+            }
+
+            let dur = sample_count as f32 / 24000.0;
+            eprintln!("[PATCHBAY] → speaker: {:.1}s ({} samples)", dur, sample_count);
+        }
+
+        // 3. Receive echo-cancelled mic audio from Swift worker, publish to stt_raw
+        while let Ok(samples) = mic_rx.try_recv() {
             if samples.is_empty() { continue; }
 
-            // Resample 24kHz → output rate
-            let ratio = out_rate as f64 / 24000.0;
-            let out_len = (samples.len() as f64 * ratio) as usize;
-            let mut resampled = Vec::with_capacity(out_len);
-            for i in 0..out_len {
-                let src = i as f64 / ratio;
-                let idx = src as usize;
-                let frac = (src - idx as f64) as f32;
-                let s0 = samples[idx.min(samples.len() - 1)];
-                let s1 = samples[(idx + 1).min(samples.len() - 1)];
-                resampled.push(s0 + (s1 - s0) * frac);
+            // Mic comes at 48kHz from Swift, stt_raw contract is 48kHz — publish as-is
+            let bytes: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
+            if let Ok(loan) = mic_pub.loan_slice_uninit(bytes.len()) {
+                let _ = loan.write_from_slice(&bytes).send();
             }
-            let mut pq = spk_queue.lock().unwrap();
-            pq.extend(resampled.iter());
         }
 
-        // 2. Get mic data — downsample to 16kHz
-        let mic_frame: Vec<i16> = {
-            let mut buf = mic_buf.lock().unwrap();
-            let needed = (FRAME_SIZE as f64 * in_rate as f64 / SAMPLE_RATE as f64) as usize;
-            if buf.len() < needed {
-                std::thread::sleep(std::time::Duration::from_millis(5));
-                continue;
-            }
-            let raw: Vec<f32> = buf.drain(..needed).collect();
-            // Downsample in_rate → 16kHz via linear interpolation
-            let ratio = in_rate as f64 / SAMPLE_RATE as f64;
-            let mut out = Vec::with_capacity(FRAME_SIZE);
-            for i in 0..FRAME_SIZE {
-                let src = i as f64 * ratio;
-                let idx = src as usize;
-                let frac = (src - idx as f64) as f32;
-                let s0 = raw[idx.min(raw.len() - 1)];
-                let s1 = raw[(idx + 1).min(raw.len() - 1)];
-                out.push(((s0 + (s1 - s0) * frac) * 32767.0).clamp(-32768.0, 32767.0) as i16);
-            }
-            out
-        };
-
-        // 3. Get speaker reference — EXACT what was played, already at 16kHz
-        let speaker_frame: Vec<i16> = {
-            let mut sr = spk_ref.lock().unwrap();
-            if sr.len() >= FRAME_SIZE {
-                sr.drain(..FRAME_SIZE).collect()
-            } else {
-                vec![0i16; FRAME_SIZE]
-            }
-        };
-
-        // 4. Process — one call, matched signals
-        let mut clean_frame = vec![0i16; FRAME_SIZE];
-        aec.cancel_echo(&mic_frame, &speaker_frame, &mut clean_frame);
-
-        // 5. Publish clean_frame to stt_raw (upsample 16k → 48k for silero)
-        let mut out_48k: Vec<f32> = Vec::with_capacity(FRAME_SIZE * 3);
-        for i in 0..clean_frame.len() {
-            let s0 = clean_frame[i] as f32 / 32768.0;
-            let s1 = if i + 1 < clean_frame.len() {
-                clean_frame[i + 1] as f32 / 32768.0
-            } else { s0 };
-            out_48k.push(s0);
-            out_48k.push(s0 + (s1 - s0) / 3.0);
-            out_48k.push(s0 + (s1 - s0) * 2.0 / 3.0);
-        }
-        let bytes: Vec<u8> = out_48k.iter().flat_map(|s| s.to_le_bytes()).collect();
-        if let Ok(loan) = mic_pub.loan_slice_uninit(bytes.len()) {
-            let _ = loan.write_from_slice(&bytes).send();
-        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
 }

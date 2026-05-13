@@ -1836,6 +1836,7 @@ name = "tts-ant"
 version = "0.2.0"
 dependencies = [
  "iceoryx2",
+ "iceoryx2-bb-system-types",
  "kokoro-g2p",
  "misaki-rs",
  "once_cell",

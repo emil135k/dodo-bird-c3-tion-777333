@@ -7,6 +7,8 @@
 //! Data flow: Patchbay → [stt_raw] → Silero → [stt_audio] → STT
 
 use iceoryx2::prelude::*;
+use iceoryx2_bb_system_types::path::Path as IoxPath;
+use iceoryx2_bb_container::semantic_string::SemanticString;
 use silero_vad_rust::silero_vad::model::{load_silero_vad, OnnxModel};
 use serde::Deserialize;
 
@@ -69,7 +71,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut model: OnnxModel = load_silero_vad()?;
     eprintln!("[SILERO] Model loaded — supported rates: {:?}", model.sample_rates());
 
-    let node = NodeBuilder::new().create::<ipc::Service>()?;
+    let mut iox = Config::default();
+    iox.global.set_root_path(&IoxPath::new(b"/tmp/iceoryx2/").unwrap());
+    let node = NodeBuilder::new().config(&iox).create::<ipc::Service>()?;
 
     // Contract: stt_raw contains f32 PCM at 48kHz mono from patchbay/mic
     let raw_svc = node.service_builder(&"stt_raw".try_into()?)

@@ -7,6 +7,8 @@ authors = ["Emil, Cody & Lyra — Sparked Matter LLC"]
 
 [dependencies]
 iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"
 
 # Silero VAD v6 — accepts 48kHz natively (decimates internally)
 silero-vad-rust = { version = "6.2", default-features = false }

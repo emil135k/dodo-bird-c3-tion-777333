@@ -1,4 +1,5 @@
 {
-    "input_device": "Plantronics Blackwire 3210 Series",
-    "output_device": "Plantronics Blackwire 3210 Series"
+    "input_device": "MacBook Pro Microphone",
+    "output_device": "MacBook Pro",
+    "aec_delay_ms": 0
 }

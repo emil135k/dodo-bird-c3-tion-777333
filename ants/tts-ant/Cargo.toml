@@ -11,6 +11,7 @@ ort = { version = "2.0.0-rc.11", features = ["coreml"] }
 
 # Zero-copy IPC — shared memory bus
 iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
 
 # G2P phonemizer — pure Rust
 misaki-rs = { version = "0.3", default-features = false }
