@@ -1,0 +1,17 @@
+[package]
+name = "swarm-tools"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "inject-tts-text"
+path = "src/inject_tts_text.rs"
+
+[[bin]]
+name = "speaker-ctl-ant"
+path = "src/speaker_ctl.rs"
+
+[dependencies]
+iceoryx2 = "0.8"
+iceoryx2-bb-system-types = "0.8"
+iceoryx2-bb-container = "0.8"
