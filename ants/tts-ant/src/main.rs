@@ -225,7 +225,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         sample.send()?;
                         eprintln!("[TTS-ANT] Published chunk {}: {} samples", i+1, samples.len());
                     }
-                    Err(e) => { eprintln!("[TTS-ANT] Error on chunk {}: {}", i+1, e); break; }
+                    Err(e) => { eprintln!("[TTS-ANT] Error on chunk {}: {} — skipping", i+1, e); continue; }
                 }
             }
         }

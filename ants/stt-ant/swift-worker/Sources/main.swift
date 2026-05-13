@@ -20,7 +20,7 @@ import ParakeetTDT
 
 // Safety bounds
 let SAMPLE_RATE: Int = 16000
-let MAX_UTTERANCE_SECONDS: Int = 60
+let MAX_UTTERANCE_SECONDS: Int = 300
 let MAX_SAMPLES: Int32 = Int32(MAX_UTTERANCE_SECONDS * SAMPLE_RATE)  // 960000
 
 @main
