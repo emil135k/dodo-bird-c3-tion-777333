@@ -1,18 +1,22 @@
 {
+    "port": 3005,
+    "cdp_url": "http://localhost:9222",
+    "cody_tmux_session": "cody",
     "target": {
         "local": {
             "repo_path": "/Users/rocketman/dodo-bird-wormhole",
-            "tape_file": "wormhole/wormhole_collaboration_review.md",
-            "blessings_dir": "blessings"
+            "tape_file": "/Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/plaza_ant_improvements.md",
+            "blessings_dir": "blessings",
+            "frame_counter_file": "blessings/frame_counter.txt"
         },
         "github": {
             "url": "https://github.com/emil135k/dodo-bird-c3-tion-777333",
-            "tape_url": "https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/wormhole/wormhole_collaboration_review.md",
+            "tape_url": "https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/plaza_ant_improvements.md",
             "blessings_url": "https://github.com/emil135k/dodo-bird-c3-tion-777333/tree/wormhole-template/blessings"
         },
         "branch": "wormhole-template"
     },
-    "frame_counter_start": 0,
+    "frame_counter_start": 1,
     "reviewers": [
         {
             "name": "codex_vale",
@@ -20,7 +24,8 @@
             "type": "cli",
             "dispatch": "tmux",
             "tmux_session": "codex-vale",
-            "entry_file": "codex_vale.md"
+            "entry_file": "codex_vale.md",
+            "enabled": true
         },
         {
             "name": "gemini_lyra",
@@ -28,7 +33,8 @@
             "type": "cli",
             "dispatch": "tmux",
             "tmux_session": "gemini-cli-lyra",
-            "entry_file": "gemini_lyra.md"
+            "entry_file": "gemini_lyra.md",
+            "enabled": true
         },
         {
             "name": "gemini_lyra_chat",
@@ -37,7 +43,8 @@
             "dispatch": "cdp",
             "tab_match": "gemini.google",
             "scrape": true,
-            "entry_file": "gemini_lyra_chat.md"
+            "entry_file": "gemini_lyra_chat.md",
+            "enabled": true
         },
         {
             "name": "ara",
@@ -46,7 +53,8 @@
             "dispatch": "cdp",
             "tab_match": "grok",
             "scrape": true,
-            "entry_file": "ara.md"
+            "entry_file": "ara.md",
+            "enabled": true
         },
         {
             "name": "chatgpt_vale",
@@ -55,7 +63,8 @@
             "dispatch": "cdp",
             "tab_match": "chatgpt",
             "scrape": true,
-            "entry_file": "chatgpt_vale.md"
+            "entry_file": "chatgpt_vale.md",
+            "enabled": true
         },
         {
             "name": "airy",
@@ -64,7 +73,8 @@
             "dispatch": "cdp",
             "tab_match": "claude.ai",
             "scrape": false,
-            "entry_file": "airy.md"
+            "entry_file": "airy.md",
+            "enabled": true
         },
         {
             "name": "opencode",
@@ -72,12 +82,13 @@
             "type": "cli",
             "dispatch": "tmux",
             "tmux_session": "opencode",
-            "entry_file": "opencode.md"
+            "entry_file": "opencode.md",
+            "enabled": true
         }
     ],
     "prompt_template": {
-        "cli": "cd {local_repo} && git checkout {branch} && git pull origin {branch} && cat {local_repo}/{local_tape}. Read ALL existing reviews. Then write your opinion to {local_repo}/{local_blessings}/{entry_file} using BEGIN FRAME #N / END FRAME #N format. Then run: git add {local_blessings}/{entry_file} && git commit -m '{name} opinion' && git push origin {branch}",
-        "browser": "Read the collaboration review at {github_tape_url}. Read ALL existing reviews. Write your opinion as a brief review with your verdict and actionable recommendations.",
-        "self_push": "Read the collaboration review at {github_tape_url}. Read ALL existing reviews. Write your opinion to {local_blessings}/{entry_file} on the {branch} branch. Commit and push to {branch}."
+        "cli": "Read the proposed improvements document at /Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/plaza_ant_improvements.md. Read the source code at /Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/src/main.rs. Give your point of view and recommendations. Write your review to /Users/rocketman/dodo-bird-wormhole/blessings/{entry_file}. Then run: cd /Users/rocketman/dodo-bird-wormhole && git add blessings/{entry_file} && git commit -m '{name} plaza-ant review' && git push origin {branch}",
+        "browser": "Read the proposed improvements document at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/plaza_ant_improvements.md. Read the source code at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/src/main.rs. Give your point of view and recommendations.",
+        "self_push": "Read the proposed improvements document at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/plaza_ant_improvements.md. Read the source code at https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/src/main.rs. Give your point of view and recommendations. Write your review to blessings/{entry_file} on the {branch} branch. Commit and push to {branch}."
     }
 }

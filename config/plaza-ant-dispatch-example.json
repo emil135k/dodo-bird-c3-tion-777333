@@ -1,0 +1,106 @@
+{
+    "dispatch": {
+        "originator": "claude_code_cody",
+        "index": 1,
+        "scope": "plaza-ant peer review",
+        "targets": {
+            "cli": {
+                "review_document": "/Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/plaza_ant_improvements.md",
+                "source_code": "/Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/src/main.rs",
+                "film": "/Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/plaza_ant_improvements.md",
+                "blessings_dir": "/Users/rocketman/dodo-bird-wormhole/blessings",
+                "repo_path": "/Users/rocketman/dodo-bird-wormhole",
+                "branch": "wormhole-template"
+            },
+            "browser": {
+                "review_document": "https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/plaza_ant_improvements.md",
+                "source_code": "https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/src/main.rs",
+                "film": "https://github.com/emil135k/dodo-bird-c3-tion-777333/blob/wormhole-template/ants/plaza-ant/plaza_ant_improvements.md"
+            }
+        },
+        "instructions": "Read the proposed improvements document and the source code. Give your point of view and recommendations. Write your review to your blessings file, commit and push."
+    },
+    "reviewers": [
+        {
+            "id": "codex_cli_vale",
+            "display_name": "Codex Vale",
+            "type": "cli",
+            "dispatch": "tmux",
+            "tmux_session": "codex-vale",
+            "blessings_file": "codex_vale.md",
+            "enabled": true
+        },
+        {
+            "id": "gemini_cli_lyra",
+            "display_name": "Gemini Lyra CLI",
+            "type": "cli",
+            "dispatch": "tmux",
+            "tmux_session": "gemini-cli-lyra",
+            "blessings_file": "gemini_lyra.md",
+            "enabled": true
+        },
+        {
+            "id": "opencode_gemma4",
+            "display_name": "OpenCode (Gemma4)",
+            "type": "cli",
+            "dispatch": "tmux",
+            "tmux_session": "opencode",
+            "blessings_file": "opencode.md",
+            "enabled": true
+        },
+        {
+            "id": "gemini_chat_lyra",
+            "display_name": "Gemini Lyra Chat",
+            "type": "browser",
+            "dispatch": "cdp",
+            "tab_match": "gemini.google",
+            "scrape": true,
+            "blessings_file": "gemini_lyra_chat.md",
+            "enabled": true
+        },
+        {
+            "id": "chatgpt_vale",
+            "display_name": "ChatGPT Vale",
+            "type": "browser",
+            "dispatch": "cdp",
+            "tab_match": "chatgpt",
+            "scrape": true,
+            "blessings_file": "chatgpt_vale.md",
+            "enabled": true
+        },
+        {
+            "id": "grok_ara",
+            "display_name": "Ara (Grok)",
+            "type": "browser",
+            "dispatch": "cdp",
+            "tab_match": "grok",
+            "scrape": true,
+            "blessings_file": "ara.md",
+            "enabled": true
+        },
+        {
+            "id": "claude_chat_airy",
+            "display_name": "Airy",
+            "type": "self_push",
+            "dispatch": "cdp",
+            "tab_match": "claude.ai",
+            "scrape": false,
+            "blessings_file": "airy.md",
+            "enabled": true
+        }
+    ],
+    "film": {
+        "tape_path": "/Users/rocketman/dodo-bird-wormhole/ants/plaza-ant/plaza_ant_improvements.md",
+        "frame_counter": "/Users/rocketman/dodo-bird-wormhole/blessings/frame_counter.txt",
+        "frame_header": "BEGIN FRAME #{index} | {date} {time} ET | {reviewer_id} -> blessings | {scope}",
+        "frame_footer": "END FRAME #{index}"
+    },
+    "settings": {
+        "port": 3005,
+        "cdp_url": "http://localhost:9222",
+        "cody_tmux_session": "cody",
+        "dispatch_mode": "sequential",
+        "scrape_timeout_seconds": 120,
+        "scrape_poll_interval_seconds": 5
+    }
+}

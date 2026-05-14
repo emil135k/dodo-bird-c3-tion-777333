@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     format!("{{\"mode\":\"{}\"}}", mode_name(m.load(Ordering::Relaxed)))
                 }
             }))
-            .route("/mode/{new_mode}", get({
+            .route("/mode/:new_mode", get({
                 let m = mode_set.clone();
                 let b = bridge_set.clone();
                 move |AxumPath(new_mode): AxumPath<String>| async move {

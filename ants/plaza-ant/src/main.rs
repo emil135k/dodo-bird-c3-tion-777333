@@ -20,20 +20,30 @@ use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::RwLock;
 
-const PORT: u16 = 3005;
-const CDP_URL: &str = "http://localhost:9222";
 const CONFIG_PATH: &str = "/Users/rocketman/crystalballmini/hypAiAssist/config/plaza-ant.json";
 
 // ── JSON Config ──────────────────────────────────────────────────────────
+// ALL behavior is driven by this config. No hardcoded values.
+// Change the JSON, restart plaza-ant, behavior changes. No recompilation.
 
 #[derive(Deserialize, Debug, Clone)]
 struct PlazaConfig {
+    #[serde(default = "default_port")]
+    port: u16,
+    #[serde(default = "default_cdp_url")]
+    cdp_url: String,
+    #[serde(default = "default_cody_session")]
+    cody_tmux_session: String,
     target: TargetConfig,
     #[serde(default)]
     frame_counter_start: u64,
     reviewers: Vec<ReviewerJsonConfig>,
     prompt_template: PromptTemplate,
 }
+
+fn default_port() -> u16 { 3005 }
+fn default_cdp_url() -> String { "http://localhost:9222".to_string() }
+fn default_cody_session() -> String { "cody".to_string() }
 
 #[derive(Deserialize, Debug, Clone)]
 struct TargetConfig {
@@ -47,6 +57,8 @@ struct LocalTarget {
     repo_path: String,
     tape_file: String,
     blessings_dir: String,
+    #[serde(default)]
+    frame_counter_file: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -63,6 +75,8 @@ struct ReviewerJsonConfig {
     #[serde(rename = "type")]
     reviewer_type: String,  // "cli", "browser", "self_push"
     dispatch: String,       // "tmux" or "cdp"
+    #[serde(default = "default_true")]
+    enabled: bool,
     #[serde(default)]
     tmux_session: String,
     #[serde(default)]
@@ -71,6 +85,8 @@ struct ReviewerJsonConfig {
     scrape: bool,
     entry_file: String,
 }
+
+fn default_true() -> bool { true }
 
 #[derive(Deserialize, Debug, Clone)]
 struct PromptTemplate {
@@ -229,16 +245,24 @@ async fn main() {
     println!("[plaza-ant] Config loaded: {} reviewers, target: {}", config.reviewers.len(), config.target.local.repo_path);
     config.init_blessings();
 
-    // Set env vars for scrape_and_push (runs in a separate context without state access)
+    // Set env vars for functions that run without state access
     env::set_var("PLAZA_REPO_PATH", &config.target.local.repo_path);
     env::set_var("PLAZA_BRANCH", &config.target.branch);
     env::set_var("PLAZA_BLESSINGS_DIR", &config.target.local.blessings_dir);
+    env::set_var("PLAZA_CDP_URL", &config.cdp_url);
+    env::set_var("PLAZA_CODY_SESSION", &config.cody_tmux_session);
 
-    // All reviewers start online
+    // Only enabled reviewers are online
     let mut status = HashMap::new();
+    let enabled_count = config.reviewers.iter().filter(|r| r.enabled).count();
+    let disabled: Vec<_> = config.reviewers.iter().filter(|r| !r.enabled).map(|r| r.display_name.as_str()).collect();
     for r in &config.reviewers {
-        status.insert(r.name.clone(), true);
+        status.insert(r.name.clone(), r.enabled);
     }
+    if !disabled.is_empty() {
+        println!("[plaza-ant] Disabled: {}", disabled.join(", "));
+    }
+    println!("[plaza-ant] Enabled: {} of {} reviewers", enabled_count, config.reviewers.len());
     let plaza_secret = env::var("PLAZA_SECRET").unwrap_or_default();
     if plaza_secret.is_empty() {
         println!("[plaza-ant] FATAL: PLAZA_SECRET not set");
@@ -251,7 +275,7 @@ async fn main() {
         active_reviewer: None,
         subject_frame: None,
         plaza_secret,
-        config,
+        config: config.clone(),
     }));
 
     let app = Router::new()
@@ -262,10 +286,12 @@ async fn main() {
         .route("/airy-to-cody", post(handle_airy))
         .with_state(state.clone());
 
-    let addr = format!("0.0.0.0:{PORT}");
+    let port = config.port;
+    let cdp_url = config.cdp_url.clone();
+    let addr = format!("0.0.0.0:{port}");
     println!("[plaza-ant] Listening on {addr}");
     println!("[plaza-ant] Routes: /plaza, /plaza/admin, /airy-to-cody");
-    println!("[plaza-ant] CLI: tmux send-keys | Web: chromiumoxide CDP on {CDP_URL}");
+    println!("[plaza-ant] CLI: tmux send-keys | Web: chromiumoxide CDP on {cdp_url}");
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
@@ -564,12 +590,12 @@ async fn dispatch_cdp(tab_match: &str, scrape: bool, reviewer: &ReviewerJsonConf
     let prompt = message.to_string();
 
     // Connect to existing Chrome
-    let (mut browser, handler) = match Browser::connect(CDP_URL).await {
+    let (mut browser, handler) = match Browser::connect(&env::var("PLAZA_CDP_URL").unwrap_or_else(|_| "http://localhost:9222".to_string())).await {
         Ok(conn) => conn,
         Err(e) => {
             println!(
                 "[plaza-ant] ERROR: cannot connect to Chrome at {} — {}: {}",
-                CDP_URL, reviewer.display_name, e
+                &env::var("PLAZA_CDP_URL").unwrap_or_else(|_| "http://localhost:9222".to_string()), reviewer.display_name, e
             );
             return;
         }
@@ -711,7 +737,7 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerJsonConfig) {
         }
     };
 
-    let check_and_scrape_js = r#"(function(){var stop=document.querySelector('button[aria-label=\"Stop generating\"]')||document.querySelector('button[aria-label=\"Stop Response\"]');if(stop)return 'streaming';var streaming=document.querySelector('.result-streaming');if(streaming)return 'streaming';var gemLoading=document.querySelector('.loading-indicator,.response-loading,.thinking-indicator');if(gemLoading)return 'streaming';var msgs=document.querySelectorAll('[data-message-author-role=\"assistant\"]');if(msgs.length>0){var last=msgs[msgs.length-1];var md=last.querySelector('.markdown');return 'SCRAPED:'+(md||last).textContent.trim();}var gemMsgs=document.querySelectorAll('.model-response-text');if(gemMsgs.length>0){return 'SCRAPED:'+gemMsgs[gemMsgs.length-1].textContent.trim();}return 'empty';})()"#;
+    let check_and_scrape_js = r#"(function(){var stop=document.querySelector('button[aria-label=\"Stop generating\"]')||document.querySelector('button[aria-label=\"Stop Response\"]');if(stop)return 'streaming';var streaming=document.querySelector('.result-streaming');if(streaming)return 'streaming';var gemLoading=document.querySelector('.loading-indicator,.response-loading,.thinking-indicator');if(gemLoading)return 'streaming';var msgs=document.querySelectorAll('[data-message-author-role=\"assistant\"]');if(msgs.length>0){var last=msgs[msgs.length-1];var md=last.querySelector('.markdown');return 'SCRAPED:'+(md||last).textContent.trim();}var gemMsgs=document.querySelectorAll('.model-response-text');if(gemMsgs.length>0){return 'SCRAPED:'+gemMsgs[gemMsgs.length-1].textContent.trim();}var grokMsgs=document.querySelectorAll('.response-content-markdown');if(grokMsgs.length>0){return 'SCRAPED:'+grokMsgs[grokMsgs.length-1].textContent.trim();}return 'empty';})()"#;
 
     let max_attempts = 24;
     let mut response_text = String::new();
@@ -835,7 +861,7 @@ async fn scrape_and_push(tab_match: &str, reviewer: &ReviewerJsonConfig) {
 
 /// Find a tab's websocket debugger URL by matching title/URL
 async fn find_tab_ws(tab_match: &str) -> Option<String> {
-    let resp = reqwest::get(&format!("{}/json/list", CDP_URL)).await.ok()?;
+    let resp = reqwest::get(&format!("{}/json/list", &env::var("PLAZA_CDP_URL").unwrap_or_else(|_| "http://localhost:9222".to_string()))).await.ok()?;
     let tabs: Vec<serde_json::Value> = resp.json().await.ok()?;
     let lower = tab_match.to_lowercase();
     for tab in &tabs {
@@ -927,14 +953,14 @@ async fn notify_cody(message: &str) {
     let safe_msg = shell_safe(message);
     println!("[plaza-ant] Notifying Cody: {safe_msg}");
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", "cody", &safe_msg])
+        .args(["send-keys", "-t", &env::var("PLAZA_CODY_SESSION").unwrap_or_else(|_| "cody".to_string()), &safe_msg])
         .output()
         .await;
 
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", "cody", "Enter"])
+        .args(["send-keys", "-t", &env::var("PLAZA_CODY_SESSION").unwrap_or_else(|_| "cody".to_string()), "Enter"])
         .output()
         .await;
 }
@@ -965,14 +991,14 @@ async fn handle_airy(
     println!("[Airy→Cody] {}", safe_cmd.chars().take(80).collect::<String>());
 
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", "cody", &safe_cmd])
+        .args(["send-keys", "-t", &env::var("PLAZA_CODY_SESSION").unwrap_or_else(|_| "cody".to_string()), &safe_cmd])
         .output()
         .await;
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let _ = Command::new("tmux")
-        .args(["send-keys", "-t", "cody", "Enter"])
+        .args(["send-keys", "-t", &env::var("PLAZA_CODY_SESSION").unwrap_or_else(|_| "cody".to_string()), "Enter"])
         .output()
         .await;
 
