@@ -1,4 +1,0 @@
-module ArgumentParser {
-    header "/Users/rocketman/crystalballmini/hypAiAssist/ants/stt-ant/swift-worker/.build/arm64-apple-macosx/release/ArgumentParser-tool.build/ArgumentParser-Swift.h"
-    requires objc
-}

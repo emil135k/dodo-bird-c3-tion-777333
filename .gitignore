@@ -1,0 +1,78 @@
+# Public peer-review repo boundary
+#
+# This repository is for architecture docs, core configs, and source files.
+# Do not commit compiled targets, generated build products, local caches,
+# recordings, databases, or machine-specific metadata.
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Swift / Xcode / SwiftPM build products
+.build/
+**/.build/
+.swiftpm/
+**/.swiftpm/
+DerivedData/
+**/DerivedData/
+build/
+**/build/
+*.xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+*.pcm
+*.dSYM
+*.dSYM/
+
+# Rust build products
+target/
+**/target/
+
+# Node / Python local dependency and cache trees
+node_modules/
+**/node_modules/
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Local logs, scratch files, and runtime databases
+*.log
+*.tmp
+*.mdb
+*.db
+*.sqlite
+*.sqlite3
+
+# Local recordings and generated media
+test-results/
+**/test-results/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mov
+*.mp4
+*.mkv
+*.wav
+*.mp3
+*.aac
+*.flac
+
+# Archives and packaged artifacts
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+*.bz2
+*.xz
+
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
