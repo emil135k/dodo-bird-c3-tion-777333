@@ -2,6 +2,8 @@
 
 Date: 2026-05-20
 
+Vale signature note: `_v` marks a Vale-authored/actively maintained architecture note.
+
 ## Purpose
 
 This note captures the first GStreamer proof of concept for the Atomic Ant audio/video media path.

@@ -2,6 +2,8 @@
 
 Date: 2026-05-21
 
+Vale signature note: `_v` marks a Vale-authored/actively maintained architecture note.
+
 ## Purpose
 
 This document captures the current state of the Atomic Ant stack after the BEAM supervision work, OBS integration work, and the successful GStreamer OBS mirror timing fix.
@@ -790,4 +792,3 @@ OBS/browser/Twilio/drone systems:
 ```
 
 The GStreamer OBS mirror test proved that this direction is viable. The key was not simply adding GStreamer. The key was respecting the clock and buffering boundaries between iceoryx2, Rust, GStreamer, CoreAudio/BlackHole, and OBS.
-
